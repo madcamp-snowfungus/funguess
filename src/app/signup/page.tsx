@@ -1,7 +1,10 @@
 // src/app/signup/page.tsx
-import React from 'react';
+'use client'
 
-const page = () => {
+import React from 'react';
+import styled from 'styled-components';
+
+const SignupPage = () => {
   return (
     <div style={{ 
         display: 'flex',
@@ -14,4 +17,4 @@ const page = () => {
   );
 };
 
-export default page;
+export default SignupPage;
