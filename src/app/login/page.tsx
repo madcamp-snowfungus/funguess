@@ -1,5 +1,6 @@
 // src/app/login/page.tsx
 import React from 'react';
+import styled from 'styled-components';
 
 const page = () => {
   return (
@@ -9,9 +10,14 @@ const page = () => {
         alignItems: 'center',
         height: '100vh',
     }}>
-      login page
+        <span style={text}>hello</span>
     </div>
   );
 };
 
 export default page;
+
+const text = {
+    color: 'red',
+    fontSize: '20px'
+};
