@@ -54,14 +54,15 @@ const Wrapper = styled.div`
 
 const Logo = styled.p`
   color: #FAFAFA;
-  font-size: 24px;
+  font-size: 40px;
   font-weight: 700;
   cursor: default;
 `;
 
 const SubTitle = styled.p`
   color: #FFCCCC;
-  font-size: 12px;
+  font-size: 18px;
+  font-weight: 400;
   margin-top: 8px;
   margin-bottom: 32px;
   cursor: default;
@@ -69,41 +70,41 @@ const SubTitle = styled.p`
 
 const Label = styled.p`
   color: #FAFAFA;
-  width: 240px;
+  width: 300px;
   text-align: left;
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 18px;
+  margin-bottom: 8px;
   cursor: default;
 `;
 
 const Input = styled.input`
-  width: 240px;
-  padding: 8px;
+  width: 300px;
+  padding: 12px;
   border: 1px solid #FAFAFA;
   border-radius: 4px;
-  background-color: #000;
-  color: #fff;
-  font-size: 12px;
+  background-color: #121212;
+  color: #FAFAFA;
+  font-size: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 
   &::placeholder {
     color: #707070;
-    font-size: 10px;
+    font-size: 14px;
   }
 `;
 
 const LoginButton = styled.button`
-  width: 240px;
-  height: 32px;
+  width: 300px;
+  height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #FAFAFA;
   color: #121212;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 600;
   border: none;
   border-radius: 4px;
@@ -120,7 +121,7 @@ const LoginButton = styled.button`
 const OrContainer = styled.div`
   display: flex;
   align-items: center;
-  width: 240px;
+  width: 300px;
   gap: 12px;
   cursor: default;
 `;
@@ -138,14 +139,14 @@ const OrText = styled.p`
 `;
 
 const KakaoButton = styled.button`
-  width: 240px;
-  height: 32px;
+  width: 300px;
+  height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #FEE500;
   color: #121212;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
   border: none;
   border-radius: 4px;
@@ -153,15 +154,15 @@ const KakaoButton = styled.button`
   margin-top: 12px;
   cursor: pointer;
   transition: filter 0.2s ease-in-out;
-  gap: 4px;
+  gap: 8px;
 
   &:hover {
     filter: brightness(0.8);
   }
 
   svg {
-    width: 14px;
-    height: 12px;
+    width: 18px;
+    height: 15px;
   }
 `;
 
@@ -171,16 +172,16 @@ const Signup = styled.div`
   justify-content: center;
   align-items: center;
   color: #FAFAFA;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 300;
-  margin-top: 12px;
+  margin-top: 16px;
   gap: 12px;
   cursor: default;
 `;
 
 const SignupText = styled.div`
   color: #FAFAFA;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 400;
   text-decoration: underline;
   cursor: pointer;
