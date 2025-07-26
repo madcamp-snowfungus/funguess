@@ -9,12 +9,12 @@ export default function RoomPage() {
   const router = useRouter()
 
   const handleCreateRoom = () => {
-    router.push('/game/start')
+    router.push('/room/create')
   }
 
   const handleJoinRoom = () => {
     if (code.trim()) {
-      router.push(`/game/start?code=${code}`)
+      router.push(`/room/join?code=${code}`)
     }
   }
 
@@ -114,21 +114,6 @@ const Input = styled.input`
     font-size: 12px;
   }
 `
-
-// const JoinButton = styled.button`
-//   background-color: white;
-//   color: #635bff;
-//   font-weight: bold;
-//   padding: 8px 16px;
-//   border-radius: 8px;
-//   font-size: 14px;
-//   border: none;
-//   cursor: pointer;
-
-//   &:hover {
-//     background-color: #f1f1f1;
-//   }
-// `
 
 const JoinButton = styled.button`
   margin-top: 16px;
