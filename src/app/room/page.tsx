@@ -3,19 +3,35 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import styled from 'styled-components'
+import { supabase } from '@/lib/supabaseClient'
+import WaitingModal from '@/components/WaitingModal'
 
 export default function RoomPage() {
   const [code, setCode] = useState('')
+  const [isWaiting, setIsWaiting] = useState(false)
+  const [participants, setParticipants] = useState<string[]>([])
   const router = useRouter()
 
   const handleCreateRoom = () => {
     router.push('/room/create')
   }
 
-  const handleJoinRoom = () => {
-    if (code.trim()) {
-      router.push(`/room/join?code=${code}`)
+  const handleJoinRoom = async () => {
+    if (!code.trim()) return
+
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('*')
+      .eq('room_code', code.trim())
+      .single()
+
+    if (error || !data) {
+      alert('존재하지 않는 방입니다.')
+      return
     }
+
+    setParticipants(['참가자(나)']) // 추후 실시간 연동 예정
+    setIsWaiting(true)
   }
 
   return (
@@ -32,10 +48,17 @@ export default function RoomPage() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
-        <JoinButton onClick={handleJoinRoom}>입장하기</JoinButton>
-          
+          <JoinButton onClick={handleJoinRoom}>입장하기</JoinButton>
         </JoinBox>
       </ButtonWrapper>
+
+      {isWaiting && (
+        <WaitingModal
+          roomCode={code}
+          participants={participants}
+          onClose={() => setIsWaiting(false)}
+        />
+      )}
     </Container>
   )
 }
@@ -67,7 +90,7 @@ const CreateButton = styled.button`
   height: 30vh;
   padding: 40px;
   font-size: 36px;
-  font-weight: bold;
+  font-weight: 600;
   color: black;
   border-radius: 16px;
   cursor: pointer;
@@ -94,11 +117,11 @@ const JoinBox = styled.div`
 const JoinText = styled.span`
   margin-bottom: 12px;
   font-size: 36px;
-  font-weight: bold;
+  font-weight: 600;
 `
 
 const Input = styled.input`
-  width: 15vw;
+  width: 18vw;
   padding: 1vh;
   border: 1px solid #FAFAFA;
   border-radius: 4px;
@@ -117,8 +140,8 @@ const Input = styled.input`
 
 const JoinButton = styled.button`
   margin-top: 16px;
-  width: 15vw;
-  padding: 10px 0;
+  width: 18vw;
+  padding: 5px 0;
   background-color: #ffffff;
   color: #635bff;
   font-weight: bold;

@@ -5,12 +5,15 @@ import styled from 'styled-components'
 import { MdContentCopy } from 'react-icons/md'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import WaitingModal from '@/components/WaitingModal'
 
 export default function CreateRoomPage() {
   const [roomName, setRoomName] = useState('')
   const [keywordType, setKeywordType] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [copied, setCopied] = useState(false)
+  const [isWaiting, setIsWaiting] = useState(false)
+  const [participants, setParticipants] = useState<string[]>([])
   const router = useRouter()
 
   const keywordOptions = [
@@ -67,7 +70,8 @@ export default function CreateRoomPage() {
     }
 
     console.log('방 생성 완료!', data)
-    router.push(`/room/${roomCode}`)
+    setIsWaiting(true)
+    setParticipants(['방장(나)']) // ✅ 나중에 실시간 추가
   }
 
   return (
@@ -110,6 +114,15 @@ export default function CreateRoomPage() {
 
         <StartButton onClick={handleStart}>시작하기</StartButton>
       </FormWrapper>
+
+      {/* ✅ 모달 */}
+      {isWaiting && (
+        <WaitingModal
+          roomCode={roomCode}
+          participants={participants}
+          onClose={() => setIsWaiting(false)}
+        />
+      )}
     </Container>
   )
 }
@@ -122,7 +135,6 @@ const Container = styled.main`
   background: #2d2d2d;
   color: white;
   height: 100vh;
-  padding-top: 40px;
 `
 
 const FormWrapper = styled.div`
@@ -194,7 +206,7 @@ const CopiedText = styled.span`
 
 const StartButton = styled.button`
   background: #00d09c;
-  color: black; /* 오타 수정: blacks → black */
+  color: black;
   padding: 12px;
   font-size: 20px;
   border: none;
@@ -205,4 +217,27 @@ const StartButton = styled.button`
   &:hover {
     background: #00b88a;
   }
+`
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+`
+
+const ModalContent = styled.div`
+  background: #222;
+  color: white;
+  padding: 30px;
+  border-radius: 10px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 0 10px #000;
 `
