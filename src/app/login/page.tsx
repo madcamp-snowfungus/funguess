@@ -1,12 +1,37 @@
 // src/app/login/page.tsx
 'use client'
 
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { useRouter } from 'next/navigation';
 
 const LoginPage = () => {
   const router = useRouter();
+
+  const [id, setId] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async () => {
+    try {
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert('로그인 성공');
+        router.push('/room');
+      } else {
+        alert(result.message || '로그인 실패');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('로그인 중 오류가 발생했습니다.');
+    }
+  };
 
   return (
     <Wrapper>
@@ -14,12 +39,22 @@ const LoginPage = () => {
       <SubTitle>"가장 의심스러운 자를 찾아라"</SubTitle>
 
       <Label>아이디</Label>
-      <Input type="text" placeholder="아이디를 입력하세요" />
+      <Input 
+        type="text" 
+        placeholder="아이디를 입력하세요" 
+        value={id}
+        onChange={(e) => setId(e.target.value)}
+      />
 
       <Label>비밀번호</Label>
-      <Input type="password" placeholder="비밀번호를 입력하세요" />
+      <Input 
+        type="password" 
+        placeholder="비밀번호를 입력하세요" 
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
-      <LoginButton>로그인</LoginButton>
+      <LoginButton onClick={handleLogin}>로그인</LoginButton>
 
       <OrContainer>
         <Line/>

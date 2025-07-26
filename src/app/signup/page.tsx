@@ -15,13 +15,31 @@ const SignupPage = () => {
 
   const isFormFilled = id && password && confirmPassword && nickname;
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (password !== confirmPassword) {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
 
-    router.push('/login');
+    try {
+      const res = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password, nickname }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert('회원가입 성공');
+        router.push('/login');
+      } else {
+        alert(result.message || '회원가입 실패');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('회원가입 중 오류가 발생했습니다.');
+    }
   };
 
   return (
