@@ -2,6 +2,7 @@
 'use client'
 
 import styled, { keyframes } from 'styled-components'
+import { motion } from 'framer-motion'
 
 interface AILoadingOverlayProps {
   speakerName: string
@@ -16,10 +17,10 @@ export default function AILoadingOverlay({ speakerName }: AILoadingOverlayProps)
   )
 }
 
-const Overlay = styled.div`
+const Overlay = styled(motion.div)`
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   color: white;
   z-index: 1000;
   display: flex;
@@ -35,16 +36,19 @@ const spin = keyframes`
 `
 
 const Spinner = styled.div`
-  width: 48px;
-  height: 48px;
-  border: 5px solid #00d09c;
+  width: 60px;
+  height: 60px;
+  border: 6px solid #00d09c;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: ${spin} 1s linear infinite;
+  animation: ${spin} 0.9s linear infinite;
+  margin-bottom: 24px;
 `
 
 const Message = styled.div`
-  margin-top: 20px;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 500;
+  text-align: center;
+  padding: 0 24px;
+  line-height: 1.5;
 `

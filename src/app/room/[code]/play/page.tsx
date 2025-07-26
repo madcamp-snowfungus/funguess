@@ -1,3 +1,4 @@
+//src/app/room/[code]/play/page.tsx
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
@@ -5,16 +6,24 @@ import styled from 'styled-components'
 import Header from '@/components/Header'
 import AILoadingOverlay from '@/components/AILoadingOverlay'
 import AIResultModal from '@/components/AIResultModal'
+import WordRevealLiar from '@/components/WordRevealLiar'
+import WordRevealNormal from '@/components/WordRevealNormal'
 
 export default function GamePlayPage() {
   const [time, setTime] = useState(90)
   const [message, setMessage] = useState('')
-  const [speakingUser, setSpeakingUser] = useState('닉네임') // 예시 이름
+  const [speakingUser, setSpeakingUser] = useState('닉네임')
   const [showAILoading, setShowAILoading] = useState(false)
   const [showAIResult, setShowAIResult] = useState(false)
   const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [videoReady, setVideoReady] = useState(false)
 
-  const participants = ['유저1', '유저2', '유저3'] // 실제 데이터로 대체 예정
+  const participants = ['유저1', '유저2', '유저3']
+
+  const [showWordReveal, setShowWordReveal] = useState(true)
+  const [isLiar, setIsLiar] = useState(false)
+  const [assignedWord, setAssignedWord] = useState('고양이')
+  const [targetUser, setTargetUser] = useState('유저1')
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -24,22 +33,64 @@ export default function GamePlayPage() {
   }, [])
 
   useEffect(() => {
-    if (navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then((stream) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream
-          }
-        })
-        .catch((err) => {
-          console.error('웹캠 연결 오류:', err)
-          alert('웹캠 접근 권한을 허용해주세요!')
-        })
+    if (!navigator.mediaDevices?.getUserMedia) return
+
+    const tryGetStream = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        const video = videoRef.current
+        if (video) {
+          video.srcObject = stream
+          video.muted = true
+          await video.play()
+          setVideoReady(true)
+          console.log('웹캠 연결 및 재생 성공')
+        } else {
+          console.warn('videoRef.current가 초기화되지 않았습니다.')
+        }
+      } catch (err) {
+        console.error('웹캠 연결 오류:', err)
+        alert('웹캠 접근 권한을 허용해주세요!')
+      }
     }
+
+    const interval = setInterval(() => {
+      if (videoRef.current) {
+        clearInterval(interval)
+        tryGetStream()
+      }
+    }, 100)
+
+    return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    if (showWordReveal) {
+      const timer = setTimeout(() => {
+        setShowWordReveal(false)
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [showWordReveal])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value)
+  }
+
+  const handleShowWordReveal = () => {
+    const isUserLiar = Math.random() < 0.5
+    setIsLiar(isUserLiar)
+    setAssignedWord('고양이')
+    setTargetUser('유저1')
+    setShowWordReveal(true)
+  }
+
+  if (showWordReveal) {
+    return isLiar ? (
+      <WordRevealLiar />
+    ) : (
+      <WordRevealNormal word={assignedWord} targetUser={targetUser} />
+    )
   }
 
   return (
@@ -77,13 +128,20 @@ export default function GamePlayPage() {
             )
           })}
         </PlayerGrid>
+
+        <RevealButton onClick={handleShowWordReveal}>
+          제시어 / 라이어 화면 보기
+        </RevealButton>
       </MainContent>
 
       {showAILoading && <AILoadingOverlay speakerName={speakingUser} />}
       {showAIResult && (
         <AIResultModal
-          liarName="서경"
-          word="카메라"
+          speakerName="이연재"
+          blinkCount={21}
+          expression="당황한 표정"
+          vagueness="모호한 발언"
+          liarProbability={76}
           onClose={() => setShowAIResult(false)}
         />
       )}
@@ -118,7 +176,8 @@ const StyledVideo = styled.video`
   height: 35vh;
   border-radius: 10px;
   object-fit: cover;
-  transform: scaleX(-1); /* 좌우 반전 */
+  background: #333;
+  transform: scaleX(-1);
 `
 
 const NicknameLabel = styled.div`
@@ -182,4 +241,19 @@ const Dot = styled.span`
   background: #00ff88;
   border-radius: 50%;
   vertical-align: middle;
+`
+
+const RevealButton = styled.button`
+  margin-top: 24px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  background: #0cd49c;
+  color: black;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+
+  &:hover {
+    background: #0bbf8a;
+  }
 `
