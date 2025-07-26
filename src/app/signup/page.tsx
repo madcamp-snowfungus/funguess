@@ -15,13 +15,31 @@ const SignupPage = () => {
 
   const isFormFilled = id && password && confirmPassword && nickname;
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (password !== confirmPassword) {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
 
-    router.push('/login');
+    try {
+      const res = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password, nickname }),
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        alert('회원가입 성공');
+        router.push('/login');
+      } else {
+        alert(result.message || '회원가입 실패');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('회원가입 중 오류가 발생했습니다.');
+    }
   };
 
   return (
@@ -80,14 +98,15 @@ const Wrapper = styled.div`
 
 const Logo = styled.p`
   color: #FAFAFA;
-  font-size: 24px;
+  font-size: 40px;
   font-weight: 700;
   cursor: default;
 `;
 
 const SubTitle = styled.p`
   color: #FFCCCC;
-  font-size: 12px;
+  font-size: 18px;
+  font-weight: 400;
   margin-top: 8px;
   margin-bottom: 32px;
   cursor: default;
@@ -95,41 +114,41 @@ const SubTitle = styled.p`
 
 const Label = styled.p`
   color: #FAFAFA;
-  width: 240px;
+  width: 300px;
   text-align: left;
-  font-size: 12px;
-  margin-bottom: 6px;
+  font-size: 18px;
+  margin-bottom: 8px;
   cursor: default;
 `;
 
 const Input = styled.input`
-  width: 240px;
-  padding: 8px;
+  width: 300px;
+  padding: 12px;
   border: 1px solid #FAFAFA;
   border-radius: 4px;
-  background-color: #000;
-  color: #fff;
-  font-size: 12px;
+  background-color: #121212;
+  color: #FAFAFA;
+  font-size: 16px;
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 
   &::placeholder {
     color: #707070;
-    font-size: 10px;
+    font-size: 14px;
   }
 `;
 
 const SignupButton = styled.button<{ disabled?: boolean }>`
-  width: 240px;
-  height: 32px;
+  width: 300px;
+  height: 40px;
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: ${({ disabled }) => (disabled ? '#808080' : '#FAFAFA')};
   color: ${({ disabled }) => (disabled ? '#CCCCCC' : '#121212')};
-  font-size: 12px;
+  font-size: 16px;
   font-weight: ${({ disabled }) => (disabled ? '500' : '600')};
   border: none;
   border-radius: 4px;
