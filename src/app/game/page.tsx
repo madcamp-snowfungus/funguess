@@ -6,23 +6,23 @@ import styled from 'styled-components'
 import { supabase } from '@/lib/supabaseClient'
 import WaitingModal from '@/components/WaitingModal'
 
-export default function RoomPage() {
+export default function GamePage() {
   const [code, setCode] = useState('')
   const [isWaiting, setIsWaiting] = useState(false)
   const [participants, setParticipants] = useState<string[]>([])
   const router = useRouter()
 
-  const handleCreateRoom = () => {
-    router.push('/room/create')
+  const handleCreateGame = () => {
+    router.push('/game/create')
   }
 
-  const handleJoinRoom = async () => {
+  const handleJoinGame = async () => {
     if (!code.trim()) return
 
     const { data, error } = await supabase
-      .from('rooms')
+      .from('games')
       .select('*')
-      .eq('room_code', code.trim())
+      .eq('game_code', code.trim())
       .single()
 
     if (error || !data) {
@@ -38,7 +38,7 @@ export default function RoomPage() {
     <Container>
       <Title>FunGuess</Title>
       <ButtonWrapper>
-        <CreateButton onClick={handleCreateRoom}>
+        <CreateButton onClick={handleCreateGame}>
           새로운 게임 시작하기
         </CreateButton>
         <JoinBox>
@@ -48,13 +48,13 @@ export default function RoomPage() {
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
-          <JoinButton onClick={handleJoinRoom}>입장하기</JoinButton>
+          <JoinButton onClick={handleJoinGame}>입장하기</JoinButton>
         </JoinBox>
       </ButtonWrapper>
 
       {isWaiting && (
         <WaitingModal
-          roomCode={code}
+          gameCode={code}
           participants={participants}
           onClose={() => setIsWaiting(false)}
         />

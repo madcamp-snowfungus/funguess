@@ -7,10 +7,10 @@ import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import WaitingModal from '@/components/WaitingModal'
 
-export default function CreateRoomPage() {
-  const [roomName, setRoomName] = useState('')
+export default function CreateGamePage() {
+  const [gameName, setGameName] = useState('')
   const [keywordType, setKeywordType] = useState('')
-  const [roomCode, setRoomCode] = useState('')
+  const [gameCode, setGameCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
   const [participants, setParticipants] = useState<string[]>([])
@@ -27,12 +27,12 @@ export default function CreateRoomPage() {
 
   useEffect(() => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-    setRoomCode(code)
+    setGameCode(code)
   }, [])
 
   const handleCopy = () => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(roomCode).then(() => {
+      navigator.clipboard.writeText(gameCode).then(() => {
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       }).catch(() => {
@@ -40,7 +40,7 @@ export default function CreateRoomPage() {
       })
     } else {
       const tempInput = document.createElement('input')
-      tempInput.value = roomCode
+      tempInput.value = gameCode
       document.body.appendChild(tempInput)
       tempInput.select()
       document.execCommand('copy')
@@ -52,15 +52,15 @@ export default function CreateRoomPage() {
   }
 
   const handleStart = async () => {
-    if (!roomName || !keywordType || !roomCode) {
+    if (!gameName || !keywordType || !gameCode) {
       alert('모든 항목을 입력해주세요.')
       return
     }
 
-    const { data, error } = await supabase.from('rooms').insert({
-      room_name: roomName,
+    const { data, error } = await supabase.from('games').insert({
+      game_name: gameName,
       keyword_type: keywordType,
-      room_code: roomCode,
+      game_code: gameCode,
     })
 
     if (error) {
@@ -83,8 +83,8 @@ export default function CreateRoomPage() {
           방 이름 :
           <Input
             type="text"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
+            value={gameName}
+            onChange={(e) => setGameName(e.target.value)}
           />
         </Label>
 
@@ -104,7 +104,7 @@ export default function CreateRoomPage() {
         <Label>
           방 코드 :
           <CodeRow>
-            <CodeBox>{roomCode}</CodeBox>
+            <CodeBox>{gameCode}</CodeBox>
             <CopyButton onClick={handleCopy} aria-label="방 코드 복사">
               <MdContentCopy size={24} />
             </CopyButton>
@@ -118,7 +118,7 @@ export default function CreateRoomPage() {
       {/* ✅ 모달 */}
       {isWaiting && (
         <WaitingModal
-          roomCode={roomCode}
+          gameCode={gameCode}
           participants={participants}
           onClose={() => setIsWaiting(false)}
         />

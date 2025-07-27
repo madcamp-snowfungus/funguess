@@ -6,17 +6,17 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
 interface WaitingModalProps {
-  roomCode: string
+  gameCode: string
   participants: string[]
   onClose?: () => void
 }
 
-export default function WaitingModal({ roomCode, participants, onClose }: WaitingModalProps) {
+export default function WaitingModal({ gameCode, participants, onClose }: WaitingModalProps) {
   const router = useRouter()
 
   const handleStart = () => {
     if (participants.length >= 4) {
-      router.push(`/room/${roomCode}`)
+      router.push(`/room/${gameCode}`)
       if (onClose) onClose()
     }
   }
