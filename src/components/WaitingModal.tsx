@@ -10,6 +10,7 @@ interface Participant {
   user_id: number
   nickname: string
   isHost: boolean
+  role: string
   joinedAt: string
 }
 
@@ -48,10 +49,13 @@ export default function WaitingModal({ gameCode, participants, onClose }: Waitin
         <List>
           {participants.map((participant, idx) => (
             <ParticipantItem key={participant.id}>
-              <ParticipantIcon>{participant.isHost ? '👑' : '👤'}</ParticipantIcon>
+              <ParticipantIcon>
+                {participant.isHost ? '👑' : participant.role === 'liar' ? '🤥' : '👤'}
+              </ParticipantIcon>
               <ParticipantName>
                 {participant.nickname}
                 {participant.isHost && ' (방장)'}
+                {participant.role === 'liar' && ' (라이어)'}
               </ParticipantName>
             </ParticipantItem>
           ))}

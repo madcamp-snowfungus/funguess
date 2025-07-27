@@ -13,6 +13,7 @@ export default function GamePage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [gameId, setGameId] = useState<number | null>(null)
   const [gameCode, setGameCode] = useState('')
+  const [isLiarSelected, setIsLiarSelected] = useState(false) // 라이어 선택 플래그
   const router = useRouter()
 
   useEffect(() => {
@@ -97,6 +98,7 @@ export default function GamePage() {
         user_id: p.user_id,
         nickname: p.users.user_nickname,
         isHost: p.is_host,
+        role: p.role,
         joinedAt: p.joined_at
       }))
 
@@ -104,17 +106,18 @@ export default function GamePage() {
       setParticipants(participantsList)
 
       // 4명이 모이면 자동으로 게임 시작
-      if (participantsList.length === 4) {
+      if (participantsList.length === 4 && !isLiarSelected) {
         console.log('4명이 모였습니다. 게임 상태 확인')
         // 게임 상태 확인
         const { data: gameData } = await supabase
           .from('games')
-          .select('status')
+          .select('status, liar_user_id')
           .eq('id', gameId)
           .single()
 
-        if (gameData?.status === 'playing') {
-          console.log('게임 시작 페이지로 이동')
+        if (gameData?.status === 'playing' && gameData?.liar_user_id) {
+          console.log('게임이 이미 시작되었습니다.')
+          setIsLiarSelected(true)
           router.push(`/game/${gameCode}/play`)
         }
       }
