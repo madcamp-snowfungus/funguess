@@ -34,7 +34,14 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(
-        { message: '로그인 성공' }, 
+        { 
+            message: '로그인 성공',
+            user: {
+                id: user.id,
+                user_id: user.user_id,
+                user_nickname: user.user_nickname
+            }
+        }, 
         { status: 200 }
     );
 }

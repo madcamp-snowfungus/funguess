@@ -13,7 +13,9 @@ export default function CreateGamePage() {
   const [gameCode, setGameCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
-  const [participants, setParticipants] = useState<string[]>([])
+  const [participants, setParticipants] = useState<any[]>([])
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [gameId, setGameId] = useState<number | null>(null)
   const router = useRouter()
 
   const keywordOptions = [
@@ -28,7 +30,129 @@ export default function CreateGamePage() {
   useEffect(() => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
     setGameCode(code)
-  }, [])
+    
+    // 로컬 스토리지에서 사용자 정보 가져오기
+    const userInfo = localStorage.getItem('userInfo')
+    if (userInfo) {
+      setCurrentUser(JSON.parse(userInfo))
+    } else {
+      // 사용자 정보가 없으면 로그인 페이지로 리다이렉트
+      router.push('/login')
+    }
+  }, [router])
+
+  // 실시간 참가자 목록 구독
+  useEffect(() => {
+    if (!gameId) return
+
+    console.log('실시간 구독 시작:', gameId)
+
+    const channel = supabase
+      .channel(`game_participants_${gameId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'game_participants',
+          filter: `game_id=eq.${gameId}`
+        },
+        async (payload) => {
+          console.log('참가자 변경 감지:', payload)
+          await fetchParticipants()
+        }
+      )
+      .subscribe((status) => {
+        console.log('실시간 구독 상태:', status)
+        if (status === 'SUBSCRIBED') {
+          console.log('실시간 구독 성공!')
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error('실시간 구독 실패!')
+        }
+      })
+
+    // 테스트용: 5초마다 참가자 목록 새로고침
+    const interval = setInterval(() => {
+      console.log('주기적 참가자 목록 새로고침')
+      fetchParticipants()
+    }, 5000)
+
+    return () => {
+      console.log('실시간 구독 해제:', gameId)
+      clearInterval(interval)
+      supabase.removeChannel(channel)
+    }
+  }, [gameId])
+
+  // 참가자 목록 가져오기
+  const fetchParticipants = async () => {
+    if (!gameId) return
+
+    console.log('참가자 목록 가져오기 시작:', gameId)
+
+    try {
+      const { data, error } = await supabase
+        .from('game_participants')
+        .select(`
+          *,
+          users!inner(user_nickname)
+        `)
+        .eq('game_id', gameId)
+        .order('joined_at', { ascending: true })
+
+      if (error) {
+        console.error('참가자 목록 가져오기 오류:', error)
+        return
+      }
+
+      console.log('가져온 참가자 데이터:', data)
+
+      const participantsList = data.map(p => ({
+        id: p.id,
+        user_id: p.user_id,
+        nickname: p.users.user_nickname,
+        isHost: p.is_host,
+        joinedAt: p.joined_at
+      }))
+
+      console.log('처리된 참가자 목록:', participantsList)
+      setParticipants(participantsList)
+
+      // 4명이 모이면 라이어 선택
+      if (participantsList.length === 4) {
+        console.log('4명이 모였습니다. 라이어 선택 시작')
+        await selectLiar()
+      }
+    } catch (error) {
+      console.error('참가자 목록 가져오기 중 오류:', error)
+    }
+  }
+
+  // 라이어 선택
+  const selectLiar = async () => {
+    if (!gameId) return
+
+    // 참가자 중 랜덤으로 라이어 선택
+    const randomIndex = Math.floor(Math.random() * participants.length)
+    const liar = participants[randomIndex]
+
+    // 게임에 라이어 설정 (user_id 사용)
+    const { error: gameError } = await supabase
+      .from('games')
+      .update({ 
+        liar_user_id: liar.user_id, // 참가자 ID가 아닌 사용자 ID 사용
+        status: 'playing'
+      })
+      .eq('id', gameId)
+
+    if (gameError) {
+      console.error('라이어 설정 오류:', gameError)
+      return
+    }
+
+    // 게임 시작 페이지로 이동
+    router.push(`/game/${gameCode}/play`)
+  }
 
   const handleCopy = () => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
@@ -52,26 +176,67 @@ export default function CreateGamePage() {
   }
 
   const handleStart = async () => {
-    if (!gameName || !keywordType || !gameCode) {
+    if (!gameName || !keywordType || !gameCode || !currentUser) {
       alert('모든 항목을 입력해주세요.')
       return
     }
 
-    const { data, error } = await supabase.from('games').insert({
-      game_name: gameName,
-      keyword_type: keywordType,
-      game_code: gameCode,
-    })
+    try {
+      // 1. 게임 생성
+      const { data: gameData, error: gameError } = await supabase
+        .from('games')
+        .insert({
+          host_user_id: currentUser.id,
+          keyword_type: keywordType,
+          game_code: gameCode,
+          status: 'waiting',
+          current_turn: 0
+        })
+        .select()
+        .single()
 
-    if (error) {
-      console.error(error)
+      if (gameError) {
+        console.error('게임 생성 오류:', gameError)
+        alert('방 생성에 실패했습니다.')
+        return
+      }
+
+      // 2. 방장을 게임 참가자로 추가
+      const { error: participantError } = await supabase
+        .from('game_participants')
+        .insert({
+          user_id: currentUser.id,
+          game_id: gameData.id,
+          role: 'player',
+          is_host: true,
+          turn_order: 0
+        })
+
+      if (participantError) {
+        console.error('참가자 추가 오류:', participantError)
+        alert('방 생성에 실패했습니다.')
+        return
+      }
+
+      console.log('방 생성 완료!', gameData)
+      setGameId(gameData.id)
+      setIsWaiting(true)
+      
+      // 게임 정보를 로컬 스토리지에 저장
+      localStorage.setItem('currentGameCode', gameCode)
+      localStorage.setItem('currentGameId', gameData.id.toString())
+      
+      // 초기 참가자 목록 가져오기
+      await fetchParticipants()
+      
+    } catch (error) {
+      console.error('게임 생성 중 오류:', error)
       alert('방 생성에 실패했습니다.')
-      return
     }
+  }
 
-    console.log('방 생성 완료!', data)
-    setIsWaiting(true)
-    setParticipants(['방장(나)']) // ✅ 나중에 실시간 추가
+  if (!currentUser) {
+    return <div>로딩 중...</div>
   }
 
   return (
@@ -80,11 +245,12 @@ export default function CreateGamePage() {
         <Title>FunGuess</Title>
 
         <Label>
-          방 이름 :
+          게임 이름 :
           <Input
             type="text"
             value={gameName}
             onChange={(e) => setGameName(e.target.value)}
+            placeholder="게임 이름을 입력하세요"
           />
         </Label>
 
@@ -102,10 +268,10 @@ export default function CreateGamePage() {
         </Label>
 
         <Label>
-          방 코드 :
+          게임 코드 :
           <CodeRow>
             <CodeBox>{gameCode}</CodeBox>
-            <CopyButton onClick={handleCopy} aria-label="방 코드 복사">
+            <CopyButton onClick={handleCopy} aria-label="게임 코드 복사">
               <MdContentCopy size={24} />
             </CopyButton>
             {copied && <CopiedText>복사됨!</CopiedText>}

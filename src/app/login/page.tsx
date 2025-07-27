@@ -22,8 +22,10 @@ const LoginPage = () => {
       const result = await res.json();
 
       if (res.ok) {
+        // 사용자 정보를 로컬 스토리지에 저장
+        localStorage.setItem('userInfo', JSON.stringify(result.user));
         alert('로그인 성공');
-        router.push('/room');
+        router.push('/game');
       } else {
         alert(result.message || '로그인 실패');
       }
