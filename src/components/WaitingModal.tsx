@@ -5,18 +5,27 @@ import styled from 'styled-components'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 
+interface Participant {
+  id: number
+  user_id: number
+  nickname: string
+  isHost: boolean
+  role: string
+  joinedAt: string
+}
+
 interface WaitingModalProps {
-  roomCode: string
-  participants: string[]
+  gameCode: string
+  participants: Participant[]
   onClose?: () => void
 }
 
-export default function WaitingModal({ roomCode, participants, onClose }: WaitingModalProps) {
+export default function WaitingModal({ gameCode, participants, onClose }: WaitingModalProps) {
   const router = useRouter()
 
   const handleStart = () => {
     if (participants.length >= 4) {
-      router.push(`/room/${roomCode}`)
+      router.push(`/game/${gameCode}/play`)
       if (onClose) onClose()
     }
   }
@@ -32,12 +41,30 @@ export default function WaitingModal({ roomCode, participants, onClose }: Waitin
         transition={{ duration: 0.3 }}
       >
         <Title>🎮 게임 대기 중...</Title>
+        <GameCode>게임 코드: {gameCode}</GameCode>
         <Divider />
+        <ParticipantCount>
+          참가자: {participants.length}/4명
+        </ParticipantCount>
         <List>
-          {participants.map((name, idx) => (
-            <li key={idx}>👤 {name}</li>
+          {participants.map((participant, idx) => (
+            <ParticipantItem key={participant.id}>
+              <ParticipantIcon>
+                {participant.isHost ? '👑' : participant.role === 'liar' ? '🤥' : '👤'}
+              </ParticipantIcon>
+              <ParticipantName>
+                {participant.nickname}
+                {participant.isHost && ' (방장)'}
+                {participant.role === 'liar' && ' (라이어)'}
+              </ParticipantName>
+            </ParticipantItem>
           ))}
         </List>
+        {participants.length < 4 && (
+          <WaitingMessage>
+            다른 참가자들이 입장할 때까지 기다려주세요...
+          </WaitingMessage>
+        )}
         <StartButton disabled={isDisabled} onClick={handleStart}>
           {isDisabled ? '4명 입장 시 시작 가능' : '게임 시작'}
         </StartButton>
@@ -72,7 +99,14 @@ const ModalContent = styled.div`
 
 const Title = styled.h2`
   font-size: 24px;
+  margin-bottom: 8px;
+`
+
+const GameCode = styled.div`
+  font-size: 14px;
+  color: #00d09c;
   margin-bottom: 16px;
+  font-weight: bold;
 `
 
 const Divider = styled.div`
@@ -82,15 +116,43 @@ const Divider = styled.div`
   margin-bottom: 20px;
 `
 
+const ParticipantCount = styled.div`
+  font-size: 16px;
+  color: #ccc;
+  margin-bottom: 16px;
+`
+
 const List = styled.ul`
   list-style: none;
   padding: 0;
   text-align: left;
   margin-bottom: 24px;
-  li {
-    margin-bottom: 8px;
-    font-size: 16px;
-  }
+`
+
+const ParticipantItem = styled.li`
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+`
+
+const ParticipantIcon = styled.span`
+  font-size: 20px;
+  margin-right: 12px;
+`
+
+const ParticipantName = styled.span`
+  font-size: 16px;
+  color: #fff;
+`
+
+const WaitingMessage = styled.div`
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 20px;
+  font-style: italic;
 `
 
 const StartButton = styled.button<{ disabled?: boolean }>`
