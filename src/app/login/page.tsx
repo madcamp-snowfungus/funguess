@@ -11,7 +11,9 @@ const LoginPage = () => {
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = async () => {
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
@@ -22,7 +24,6 @@ const LoginPage = () => {
       const result = await res.json();
 
       if (res.ok) {
-        // 사용자 정보를 로컬 스토리지에 저장
         localStorage.setItem('userInfo', JSON.stringify(result.user));
         alert('로그인 성공');
         router.push('/game');
@@ -40,23 +41,25 @@ const LoginPage = () => {
       <Logo>FunGuess</Logo>
       <SubTitle>"가장 의심스러운 자를 찾아라"</SubTitle>
 
-      <Label>아이디</Label>
-      <Input 
-        type="text" 
-        placeholder="아이디를 입력하세요" 
-        value={id}
-        onChange={(e) => setId(e.target.value)}
-      />
+      <Form onSubmit={handleLogin}>
+        <Label>아이디</Label>
+        <Input 
+          type="text" 
+          placeholder="아이디를 입력하세요" 
+          value={id}
+          onChange={(e) => setId(e.target.value)}
+        />
 
-      <Label>비밀번호</Label>
-      <Input 
-        type="password" 
-        placeholder="비밀번호를 입력하세요" 
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        <Label>비밀번호</Label>
+        <Input 
+          type="password" 
+          placeholder="비밀번호를 입력하세요" 
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-      <LoginButton onClick={handleLogin}>로그인</LoginButton>
+        <LoginButton type="submit">로그인</LoginButton>
+      </Form>
 
       <OrContainer>
         <Line/>
@@ -103,6 +106,12 @@ const SubTitle = styled.p`
   margin-top: 8px;
   margin-bottom: 32px;
   cursor: default;
+`;
+
+const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const Label = styled.p`
