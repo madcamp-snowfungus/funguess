@@ -50,12 +50,11 @@ export default function WaitingModal({ gameCode, participants, onClose }: Waitin
           {participants.map((participant, idx) => (
             <ParticipantItem key={participant.id}>
               <ParticipantIcon>
-                {participant.isHost ? '👑' : participant.role === 'liar' ? '🤥' : '👤'}
+                {participant.isHost ? '👑' : '👤'}
               </ParticipantIcon>
               <ParticipantName>
                 {participant.nickname}
                 {participant.isHost && ' (방장)'}
-                {participant.role === 'liar' && ' (라이어)'}
               </ParticipantName>
             </ParticipantItem>
           ))}
@@ -104,7 +103,7 @@ const Title = styled.h2`
 
 const GameCode = styled.div`
   font-size: 14px;
-  color: #00d09c;
+  color: #21D35D;
   margin-bottom: 16px;
   font-weight: bold;
 `
@@ -159,7 +158,8 @@ const StartButton = styled.button<{ disabled?: boolean }>`
   background: ${({ disabled }) =>
     disabled
       ? '#555'
-      : 'linear-gradient(135deg, #00d09c, #4ee7c2)'};
+      // : 'linear-gradient(135deg, #00d09c, #4ee7c2)'};
+      : 'linear-gradient(135deg, #21D35D, rgb(23, 202, 83))'};
   color: ${({ disabled }) => (disabled ? '#999' : 'black')};
   padding: 14px 24px;
   font-size: 18px;
@@ -174,6 +174,7 @@ const StartButton = styled.button<{ disabled?: boolean }>`
     background: ${({ disabled }) =>
       disabled
         ? '#555'
-        : 'linear-gradient(135deg, #00b88a, #3cc3a5)'};
+        // : 'linear-gradient(135deg, #00b88a, #3cc3a5)'};
+        : 'linear-gradient(135deg, #21D35D, rgb(23, 202, 83))'};
   }
 `

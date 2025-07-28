@@ -540,7 +540,7 @@ const CopiedText = styled.span`
 `
 
 const StartButton = styled.button`
-  background: #00d09c;
+  background: #21D35D;
   color: black;
   padding: 12px;
   font-size: 20px;
@@ -550,7 +550,7 @@ const StartButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: #00b88a;
+    background: rgb(23, 202, 83);
   }
 `
 
