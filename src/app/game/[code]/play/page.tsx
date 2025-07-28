@@ -7,6 +7,7 @@ import AILoadingOverlay from '@/components/AILoadingOverlay'
 import AIResultModal from '@/components/AIResultModal'
 import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 const cardColors = ['#F26DAC', '#21D35D', '#4791FE', '#EDE42F']
 
@@ -103,17 +104,22 @@ const Dot = styled.span`
 
 export default function GamePlayPage() {
   const params = useParams();
+  const router = useRouter();
   const gameCode = params.code;
 
   const [gameId, setGameId] = useState<number | null>(null);
-  const [time, setTime] = useState(90)
-  const [message, setMessage] = useState('')
-  const [participants, setParticipants] = useState<any[]>([])
-  const [speakingIdx, setSpeakingIdx] = useState(0)
-  const [showAILoading, setShowAILoading] = useState(false)
-  const [showAIResult, setShowAIResult] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [participants, setParticipants] = useState<any[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+
+  // Turn state
+  const [currentTurn, setCurrentTurn] = useState(0); // 0~7
+  const [turnTimer, setTurnTimer] = useState(15);
+  const [turnInProgress, setTurnInProgress] = useState(true);
+  const [showAILoading, setShowAILoading] = useState(false);
+  const [showAIResult, setShowAIResult] = useState(false);
+  const [message, setMessage] = useState('');
+  const [turnsCount, setTurnsCount] = useState(0); // for progress
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // 참가자 목록 불러오기
   const getParticipants = async (gameId: number) => {
@@ -122,7 +128,6 @@ export default function GamePlayPage() {
       .select(`*, users:user_id (user_nickname)`)
       .eq('game_id', gameId)
       .order('turn_order', { ascending: true });
-
     if (error) {
       console.error('참가자 목록 불러오기 실패:', error);
       return [];
@@ -130,38 +135,56 @@ export default function GamePlayPage() {
     return data;
   }
 
+  // turns 테이블 row 개수 fetch
+  const fetchTurnsCount = async (gameId: number) => {
+    const { count, error } = await supabase
+      .from('turns')
+      .select('*', { count: 'exact', head: true })
+      .eq('game_id', gameId);
+    if (error) return 0;
+    return count || 0;
+  }
+
+  // 현재 턴의 발언자
+  const getCurrentSpeakerIdx = () => currentTurn % participants.length;
+  const speakingIdx = getCurrentSpeakerIdx();
+  const speakingUser = participants[speakingIdx]?.users?.user_nickname || '';
+  const speakingUserId = participants[speakingIdx]?.user_id?.toString();
+  const isMyTurn = myUserId && speakingUserId === myUserId;
+
+  // 참가자, 내 정보, 턴 개수 초기화
   useEffect(() => {
-    // localStorage에서 gameId 읽기
     const storedId = localStorage.getItem('currentGameId');
     if (storedId) setGameId(Number(storedId));
-  }, []);
-
-  useEffect(() => {
-    if (!gameId) return;
-    getParticipants(gameId).then((data) => {
-      setParticipants(data || [])
-    })
-  }, [gameId])
-
-  useEffect(() => {
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
       try {
         const parsed = JSON.parse(userInfo);
         setMyUserId(parsed.id?.toString() ?? parsed.user_id?.toString() ?? null);
-      } catch (e) {
-        setMyUserId(null);
-      }
+      } catch (e) { setMyUserId(null); }
     }
   }, []);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTime((prev) => (prev > 0 ? prev - 1 : 0))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [])
+    if (!gameId) return;
+    getParticipants(gameId).then((data) => setParticipants(data || []));
+    fetchTurnsCount(gameId).then(setTurnsCount);
+  }, [gameId]);
 
+  // 턴 타이머
+  useEffect(() => {
+    if (!turnInProgress) return;
+    if (turnTimer === 0) {
+      handleTurnEnd();
+      return;
+    }
+    const timer = setInterval(() => {
+      setTurnTimer((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [turnInProgress, turnTimer]);
+
+  // 웹캠
   useEffect(() => {
     if (navigator.mediaDevices?.getUserMedia) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -175,52 +198,100 @@ export default function GamePlayPage() {
           alert('웹캠 접근 권한을 허용해주세요!')
         })
     }
-  }, [])
+  }, []);
+
+  // 턴 종료 핸들러
+  const handleTurnEnd = async () => {
+    setTurnInProgress(false);
+    // DB에 turns row 추가
+    if (gameId && speakingUserId) {
+      await supabase.from('turns').insert({
+        game_id: gameId,
+        turn_number: currentTurn,
+        turn_user_id: speakingUserId,
+        transcript: message,
+        // face_analysis_data, voice_analysis_data 등은 추후 추가
+        finished_at: new Date().toISOString(),
+      });
+    }
+    setTurnsCount((prev) => prev + 1);
+    // AI 분석 모달: 발언자 제외 모두에게 표시
+    if (!isMyTurn) {
+      setShowAILoading(true);
+      setTimeout(() => {
+        setShowAILoading(false);
+        setShowAIResult(true);
+      }, 1500);
+      setTimeout(() => setShowAIResult(false), 3500);
+    }
+    // 다음 턴으로 이동 or 투표로 이동
+    setTimeout(() => {
+      if (currentTurn + 1 >= participants.length * 2) {
+        // 8턴 끝나면 투표로 이동
+        router.push(`/game/${gameCode}/vote`);
+      } else {
+        setCurrentTurn((prev) => prev + 1);
+        setTurnTimer(15);
+        setTurnInProgress(true);
+        setMessage('');
+      }
+    }, 4000);
+  };
+
+  // 발언 종료 버튼
+  const handleEndSpeech = () => {
+    if (isMyTurn && turnInProgress) handleTurnEnd();
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value)
   }
 
-  // 턴 넘기기 예시 함수 (버튼 등에서 호출)
-  const nextTurn = () => {
-    setSpeakingIdx((prev) => (prev + 1) % participants.length)
-  }
-
-  // 현재 말하는 유저
-  const speakingUser = participants[speakingIdx]?.users?.user_nickname || ''
-
   return (
     <Container>
       <Header />
-
       <MainContent>
         <ProfileSection>
-          <StyledVideo ref={videoRef} autoPlay playsInline muted />
-          <NicknameLabel>나</NicknameLabel>
+          <StyledVideo
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{ border: isMyTurn ? '3px solid #fff' : undefined, boxShadow: isMyTurn ? '0 0 16px #fff' : undefined }}
+          />
+          <NicknameLabel>나 {isMyTurn && <span style={{ color: '#00ff88', marginLeft: 8 }}>(발언 중)</span>}</NicknameLabel>
+          {isMyTurn && turnInProgress && (
+            <>
+              <div style={{ marginTop: 8, fontSize: 18 }}>남은 시간: {turnTimer}s</div>
+              <button
+                style={{ marginTop: 12, padding: '8px 24px', borderRadius: 8, background: '#00d09c', color: '#222', fontWeight: 700, border: 'none', fontSize: 18, cursor: 'pointer' }}
+                onClick={handleEndSpeech}
+              >발언 종료</button>
+            </>
+          )}
         </ProfileSection>
-
         <InputBox>
           <Input
             type="text"
             placeholder="Type something..."
             value={message}
             onChange={handleInputChange}
+            disabled={!isMyTurn || !turnInProgress}
           />
         </InputBox>
-
         <PlayerGrid>
           {participants
             .filter((p) => p.user_id?.toString() !== myUserId)
             .map((p, idx) => {
               const isActive = speakingUser === p.users?.user_nickname;
-              // turn_order를 이용해 고유 색상 할당
               const colorIdx = p.turn_order % cardColors.length;
               return (
                 <PlayerCardWrapper key={p.id || idx}>
                   <PlayerCard
-                    $active={isActive}
+                    $active={isActive && !isMyTurn}
                     color={cardColors[colorIdx]}
-                  />
+                    style={isActive && !isMyTurn ? { boxShadow: '0 0 16px #fff' } : {}}
+                  >{isActive && !isMyTurn && <span style={{ color: '#fff', fontWeight: 700 }}>발언 중</span>}</PlayerCard>
                   <NicknameLabel>
                     {isActive && <Dot />} {p.users?.user_nickname}
                   </NicknameLabel>
@@ -228,10 +299,7 @@ export default function GamePlayPage() {
               );
             })}
         </PlayerGrid>
-        {/* 예시: 턴 넘기기 버튼 */}
-        {/* <button onClick={nextTurn}>다음 턴</button> */}
       </MainContent>
-
       {showAILoading && <AILoadingOverlay speakerName={speakingUser} />}
       {showAIResult && (
         <AIResultModal
