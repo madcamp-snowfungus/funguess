@@ -213,11 +213,13 @@ export default function GamePlayPage() {
             .filter((p) => p.user_id?.toString() !== myUserId)
             .map((p, idx) => {
               const isActive = speakingUser === p.users?.user_nickname;
+              // turn_order를 이용해 고유 색상 할당
+              const colorIdx = p.turn_order % cardColors.length;
               return (
                 <PlayerCardWrapper key={p.id || idx}>
                   <PlayerCard
                     $active={isActive}
-                    color={cardColors[idx % cardColors.length]}
+                    color={cardColors[colorIdx]}
                   />
                   <NicknameLabel>
                     {isActive && <Dot />} {p.users?.user_nickname}

@@ -223,12 +223,12 @@ ALTER TABLE ONLY "public"."games"
 
 
 ALTER TABLE ONLY "public"."turns"
-    ADD CONSTRAINT "turns_game_id_fkey" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id");
+    ADD CONSTRAINT "turns_game_id_fkey" FOREIGN KEY ("game_id") REFERENCES "public"."games"("id") ON DELETE CASCADE;
 
 
 
 ALTER TABLE ONLY "public"."turns"
-    ADD CONSTRAINT "turns_turn_user_id_fkey" FOREIGN KEY ("turn_user_id") REFERENCES "public"."users"("id");
+    ADD CONSTRAINT "turns_turn_user_id_fkey" FOREIGN KEY ("turn_user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
 
 
 
