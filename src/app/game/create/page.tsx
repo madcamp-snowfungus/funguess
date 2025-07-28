@@ -10,6 +10,7 @@ import WaitingModal from '@/components/WaitingModal'
 export default function CreateGamePage() {
   const [gameName, setGameName] = useState('')
   const [keywordType, setKeywordType] = useState('')
+  const [keyword, setKeyword] = useState('')
   const [gameCode, setGameCode] = useState('')
   const [copied, setCopied] = useState(false)
   const [isWaiting, setIsWaiting] = useState(false)
@@ -94,6 +95,32 @@ export default function CreateGamePage() {
       supabase.removeChannel(channel)
     }
   }, [gameId, isLiarSelected]) // isLiarSelected를 의존성에 추가
+
+  // 제시어 랜덤 선택
+  const randomKeyword = async () => {
+    const { data, error } = await supabase
+      .from('keywords')
+      .select('word')
+      .eq('keyword_type', keywordType);
+  
+    if (error) {
+      console.error('제시어 불러오기 실패:', error);
+      return;
+    }
+  
+    if (!data || data.length === 0) {
+      console.warn('해당 타입의 제시어가 없습니다.');
+      return;
+    }
+  
+    const randomIndex = Math.floor(Math.random() * data.length);
+    const selectedKeyword = data[randomIndex].word;
+    console.log('랜덤 제시어:', selectedKeyword)
+    setKeyword(selectedKeyword);
+
+    return selectedKeyword;
+  };
+  
 
   // 참가자 목록 가져오기
   const fetchParticipants = async () => {
@@ -322,11 +349,14 @@ export default function CreateGamePage() {
 
     try {
       // 1. 게임 생성
+      const word = await randomKeyword()
+      console.log('제시어:', word)
       const { data: gameData, error: gameError } = await supabase
         .from('games')
         .insert({
           host_user_id: currentUser.id,
           keyword_type: keywordType,
+          keyword: word,
           game_code: gameCode,
           status: 'waiting',
           current_turn: 0

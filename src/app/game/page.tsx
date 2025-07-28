@@ -258,28 +258,28 @@ const ButtonWrapper = styled.div`
   display: flex;
   gap: 5vw;
 `
-
+//#4ee7c2;
 const CreateButton = styled.button`
-  background-color: #4ee7c2;
-  width: 25vw;
-  height: 30vh;
+  background-color: #21D35D;
+  width: 30vw;
+  height: 35vh;
   padding: 40px;
   font-size: 36px;
-  font-weight: 600;
+  font-weight: 700;
   color: black;
   border-radius: 16px;
   cursor: pointer;
   border: none;
 
   &:hover {
-    background-color: #3cc3a5;
+    background-color:rgb(23, 202, 83);
   }
 `
-
+//#635bff;
 const JoinBox = styled.div`
-  background-color: #635bff;
-  width: 25vw;
-  height: 30vh;
+  background-color: #4791FE;
+  width: 30vw;
+  height: 35vh;
   padding: 3vw;
   border-radius: 16px;
   display: flex;
@@ -291,18 +291,18 @@ const JoinBox = styled.div`
 
 const JoinText = styled.span`
   margin-bottom: 12px;
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 600;
 `
 
 const Input = styled.input`
-  width: 18vw;
+  width: 20vw;
   padding: 1vh;
   border: 1px solid #FAFAFA;
   border-radius: 4px;
   background-color: #000;
   color: #fff;
-  font-size: 12px;
+  font-size: 20px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -315,12 +315,12 @@ const Input = styled.input`
 
 const JoinButton = styled.button`
   margin-top: 16px;
-  width: 18vw;
+  width: 20vw;
   padding: 5px 0;
   background-color: #ffffff;
-  color: #635bff;
+  color: #4791FE;
   font-weight: bold;
-  font-size: 18px;
+  font-size: 20px;
   border-radius: 8px;
   border: none;
   cursor: pointer;
