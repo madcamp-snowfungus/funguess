@@ -143,6 +143,12 @@ export default function GamePlayPage() {
 
   const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
 
+  // STT 관련
+  const socketRef = useRef<WebSocket | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+
   // 참가자 목록 불러오기
   const getParticipants = async (gameId: number) => {
     const { data , error } = await supabase
@@ -193,6 +199,62 @@ export default function GamePlayPage() {
       } catch (e) { setMyUserId(null); }
     }
   }, []);
+
+  // 마이크 오디오 → WebSocket 전송
+  // 모든 참가자: WebSocket 열고 STT 메시지 수신
+  // 발언자만: 마이크를 STT 서버로 전송
+  useEffect(() => {
+    const socket = new WebSocket('ws://localhost:8080') // ✅ 모두 연결
+    socketRef.current = socket
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.type === 'stt') {
+        setMessage(data.text) // ✅ 모든 참가자가 메시지 받음
+      }
+    }
+
+    const startMic = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const audioContext = new AudioContext({ sampleRate: 16000 })
+      audioContextRef.current = audioContext
+
+      const source = audioContext.createMediaStreamSource(stream)
+      const processor = audioContext.createScriptProcessor(4096, 1, 1)
+      processorRef.current = processor
+
+      source.connect(processor)
+      processor.connect(audioContext.destination)
+
+      processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0)
+        const int16 = float32ToInt16(input)
+        if (socket.readyState === 1) socket.send(int16)
+      }
+    }
+
+    // 조건: 발언자인 경우만 마이크 시작
+    if (isMyTurn && turnInProgress) {
+      startMic()
+    }
+
+    return () => {
+      processorRef.current?.disconnect()
+      audioContextRef.current?.close()
+      streamRef.current?.getTracks().forEach((t) => t.stop())
+      socket.close()
+    }
+  }, [isMyTurn, turnInProgress])
+
+
+  function float32ToInt16(buffer: Float32Array): Blob {
+    const int16 = new Int16Array(buffer.length)
+    for (let i = 0; i < buffer.length; i++) {
+      int16[i] = Math.max(-1, Math.min(1, buffer[i])) * 32767
+    }
+    return new Blob([int16], { type: 'application/octet-stream' })
+  }
 
   useEffect(() => {
     if (!gameId) return;
