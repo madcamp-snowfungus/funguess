@@ -1,3 +1,4 @@
+// src/app/game/page.tsx
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -14,6 +15,7 @@ export default function GamePage() {
   const [gameId, setGameId] = useState<number | null>(null)
   const [gameCode, setGameCode] = useState('')
   const [isLiarSelected, setIsLiarSelected] = useState(false) // 라이어 선택 플래그
+  
   const router = useRouter()
 
   useEffect(() => {

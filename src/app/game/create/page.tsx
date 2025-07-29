@@ -270,7 +270,7 @@ export default function CreateGamePage() {
             value={keywordType}
             onChange={(e) => setKeywordType(e.target.value)}
           >
-            <option value="" disabled hidden>제시어 종류를 선택하세요</option>
+            <option value="" disabled hidden>제시어 종류를 선택하세요 👇</option>
             {keywordOptions.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
