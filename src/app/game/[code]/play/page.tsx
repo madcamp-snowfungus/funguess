@@ -1,20 +1,21 @@
+// src/app/game/[code]/play/page.tsx
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import styled from 'styled-components'
-import Header from '@/components/Header'
-import AILoadingOverlay from '@/components/AILoadingOverlay'
-import AIResultModal from '@/components/AIResultModal'
+import { useEffect, useRef, useState } from 'react';
+import styled from 'styled-components';
+import Header from '@/components/Header';
+import AILoadingOverlay from '@/components/AILoadingOverlay';
+import AIResultModal from '@/components/AIResultModal';
 
 export default function GamePlayPage() {
-  const [time, setTime] = useState(90)
-  const [message, setMessage] = useState('')
-  const [speakingUser, setSpeakingUser] = useState('닉네임') // 예시 이름
-  const [showAILoading, setShowAILoading] = useState(false)
-  const [showAIResult, setShowAIResult] = useState(false)
-  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const [time, setTime] = useState(90);
+  const [message, setMessage] = useState('');
+  const [speakingUser, setSpeakingUser] = useState('닉네임'); // 예시 이름
+  const [showAILoading, setShowAILoading] = useState(false);
+  const [showAIResult, setShowAIResult] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const participants = ['유저1', '유저2', '유저3'] // 실제 데이터로 대체 예정
+  const participants = ['유저1', '유저2', '유저3']; // 실제 데이터로 대체 예정
 
   useEffect(() => {
     const timer = setInterval(() => {
