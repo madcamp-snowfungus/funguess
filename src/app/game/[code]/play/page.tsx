@@ -204,7 +204,7 @@ export default function GamePlayPage() {
   const handleTurnEnd = async () => {
     setTurnInProgress(false);
     // DB에 turns row 추가
-    if (gameId && speakingUserId) {
+    if (gameId && speakingUserId && isMyTurn) {
       await supabase.from('turns').insert({
         game_id: gameId,
         turn_number: currentTurn,
