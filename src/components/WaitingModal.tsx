@@ -28,29 +28,42 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
 
   const [userId, setUserId] = useState<number | null>(null);
   const [gameId, setGameId] = useState<number | null>(null);
-  const [ready, setReady] = useState(false);
 
-   useEffect(() => {
+  useEffect(() => {
+    const storedUser = localStorage.getItem('userInfo');
+    const storedGameId = localStorage.getItem('currentGameId');
+
+    console.log('[DEBUG] userInfo 로드됨:', storedUser);
+    console.log('[DEBUG] gameId 로드됨:', storedGameId);
+
+    if (storedUser && storedGameId) {
+      const parsed = JSON.parse(storedUser);
+      console.log('[DEBUG] parsed userInfo:', parsed);
+      setUserId(parsed.id);
+      setGameId(Number(storedGameId));
+    }
+  }, []);
+
+  // userId, gameId 불러오는 useEffect (최초 한 번 실행)
+  useEffect(() => {
     const storedUser = localStorage.getItem('userInfo');
     const storedGameId = localStorage.getItem('currentGameId');
 
     if (storedUser && storedGameId) {
       const parsed = JSON.parse(storedUser);
-      setUserId(Number(parsed?.id));
+      console.log('[DEBUG] parsed userInfo:', parsed);
+
+      setUserId(Number(parsed.id));
       setGameId(Number(storedGameId));
-      setReady(true);
     }
   }, []);
 
-  // 모든 유저
+  // 구독은 userId, gameId가 모두 준비된 후에만 실행
   useEffect(() => {
-    if (!ready || !userId || !gameId) {
-      console.log('구독 조건 아직 준비 안됨', { userId, gameId, ready });
-      return;
-    }
+    if (userId === null || gameId === null) return;
 
-    console.log('구독 시도 중...', { ready, userId, gameId });
-    
+    console.log('✅ 구독 시도 중', { userId, gameId });
+
     const channel = supabase
       .channel(`game_status_${gameId}`)
       .on(
@@ -63,8 +76,7 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
         },
         async (payload) => {
           console.log('게임 시작 감지됨', payload);
-          
-          // 게임 상태가 started로 변경되었을 때만 처리
+
           if (payload.new.status !== 'started') {
             console.log('게임 상태가 started가 아님:', payload.new.status);
             return;
@@ -76,23 +88,35 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
             body: JSON.stringify({ userId, gameCode }),
           });
 
-          const { role } = await res.json();
+          if (!res.ok) {
+            console.error('❌ 역할 API 요청 실패', await res.text());
+            return;
+          }
 
-          const url = role === 'liar'
-            ? `/game/${gameCode}/reveal?role=liar`
-            : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
+          const data = await res.json();
+          console.log('[DEBUG] /api/role 응답:', data);
 
-          router.push(url);
+          if (data.role === 'liar') {
+            router.push(`/game/${gameCode}/reveal?role=liar`);
+          } else if (data.role === 'player' && data.keyword) {
+            const encodedKeyword = encodeURIComponent(data.keyword);
+            router.push(`/game/${gameCode}/reveal?role=player&keyword=${encodedKeyword}`);
+          } else {
+            console.warn('[WARN] 역할이 비정상적이거나 keyword 없음', data);
+          }
         }
       )
       .subscribe((status) => {
-        console.log('Supabase subscribe 상태:', status);
+        console.log('✅ Supabase subscribe 상태:', status);
       });
 
     return () => {
+      console.log('🧹 구독 제거');
       supabase.removeChannel(channel);
     };
-  }, [ready, userId, gameId, gameCode, keyword]);
+  }, [userId, gameId]);
+
+  console.log('[DEBUG] 전체 participants', participants);
 
   // 방장만 - 시작 버튼
   const handleStart = async () => {
@@ -104,7 +128,7 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
       return;
     }
 
-    // 1. 라이어 선택
+    // 라이어 선택
     const { data, error } = await supabase
       .from('game_participants')
       .select(`
