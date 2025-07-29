@@ -7,9 +7,13 @@ import { useRouter } from 'next/navigation';
 
 interface FinalResultModalProps {
     isLiarWin: boolean;
+    hideMessage?: boolean;
 }
 
-export default function FinalResultModal({ isLiarWin }: FinalResultModalProps) {
+export default function FinalResultModal({ 
+    isLiarWin,
+    hideMessage = false,
+}: FinalResultModalProps) {
     const router = useRouter();
 
     const handleClose = () => {
@@ -27,11 +31,15 @@ export default function FinalResultModal({ isLiarWin }: FinalResultModalProps) {
                 as={motion.div}
             >
                 <Title>{isLiarWin ? '라이어의 승리' : '시민들의 승리'}</Title>
-                <Message>
-                    {isLiarWin
+
+                {/* 시민들의 추리 실패일 경우 Message 뜨지 않음 */}
+                {!hideMessage && (
+                    <Message>
+                        {isLiarWin
                         ? '라이어가 제시어를 맞혔습니다!'
                         : '라이어가 제시어를 맞히지 못했습니다!'}
-                </Message>
+                    </Message>
+                )}
                 <CloseButton onClick={handleClose}>게임 종료</CloseButton>
             </ModalContainer>
         </Overlay>
@@ -74,7 +82,6 @@ const Title = styled.h2`
 const Message = styled.div`
     color: #FAFAFA;
     font-size: 20px;
-    margin-bottom: 40px;
     cursor: default;
 `;
 
@@ -90,10 +97,13 @@ const CloseButton = styled.button`
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 4px 12px rgba(0, 208, 156, 0.3);
+    margin-top: 40px;
+
     &:hover {
         transform: translateY(-1px);
         box-shadow: 0 6px 20px rgba(0, 208, 156, 0.4);
     }
+
     &:active {
         transform: translateY(0);
     }
