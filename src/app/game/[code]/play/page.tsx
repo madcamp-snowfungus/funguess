@@ -149,6 +149,15 @@ export default function GamePlayPage() {
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
 
+  // 음성 수신(스트리밍 재생) 관련 ref를 컴포넌트 최상단에 선언
+  const wsRef = useRef<WebSocket | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const mediaSourceRef = useRef<MediaSource | null>(null)
+  const sourceBufferRef = useRef<SourceBuffer | null>(null)
+  const queueRef = useRef<Uint8Array[]>([])
+  const isAppendingRef = useRef(false)
+  const playStartedRef = useRef(false)
+
   // 참가자 목록 불러오기
   const getParticipants = async (gameId: number) => {
     const { data , error } = await supabase
@@ -200,17 +209,129 @@ export default function GamePlayPage() {
     }
   }, []);
 
-  // 마이크 오디오 → WebSocket 전송
-  // 모든 참가자: WebSocket 열고 STT 메시지 수신
-  // 발언자만: 마이크를 STT 서버로 전송
+  // ✅ 음성 공유용 ref
+  const voiceWsRef = useRef<WebSocket | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  // const socketRef = useRef<WebSocket | null>(null)
+  // const streamRef = useRef<MediaStream | null>(null)
+  // const audioContextRef = useRef<AudioContext | null>(null)
+  // const processorRef = useRef<ScriptProcessorNode | null>(null)
+
+  // ✅ 음성 공유 시작 (발언자)
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8080') // ✅ 모두 연결
+    if (!isMyTurn || !turnInProgress) return
+
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const ws = new WebSocket('ws://localhost:8080/voice')
+      ws.binaryType = 'blob'
+      voiceWsRef.current = ws
+
+      let mimeType = 'audio/webm;codecs=opus'
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'audio/webm'
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType })
+      mediaRecorderRef.current = mediaRecorder
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0 && ws.readyState === 1) {
+          ws.send(e.data)
+        }
+      }
+
+      mediaRecorder.start(500) // chunk 크기 키움
+    })
+
+    return () => {
+      mediaRecorderRef.current?.stop()
+      voiceWsRef.current?.close()
+    }
+  }, [isMyTurn, turnInProgress])
+
+  // ✅ 음성 수신 및 스트리밍 재생 (모든 유저)
+  useEffect(() => {
+    // appendNext를 ref로 관리
+    const appendNext = () => {
+      const sourceBuffer = sourceBufferRef.current
+      const queue = queueRef.current
+      if (!sourceBuffer || isAppendingRef.current || queue.length === 0) return
+      const chunk = queue.shift()!
+      isAppendingRef.current = true
+      sourceBuffer.appendBuffer(chunk)
+    }
+
+    const connect = () => {
+      const ws = new WebSocket('ws://localhost:8080/voice')
+      ws.binaryType = 'arraybuffer'
+      wsRef.current = ws
+
+      const mediaSource = new MediaSource()
+      mediaSourceRef.current = mediaSource
+      const audio = new Audio()
+      audioRef.current = audio
+      audio.src = URL.createObjectURL(mediaSource)
+      audio.autoplay = true
+      document.body.appendChild(audio)
+
+      mediaSource.addEventListener('sourceopen', () => {
+        const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs=opus')
+        sourceBufferRef.current = sourceBuffer
+
+        if (!playStartedRef.current) {
+          audio.play().then(() => {
+            playStartedRef.current = true
+          }).catch(err => console.error('🔊 play 오류:', err))
+        }
+
+        sourceBuffer.addEventListener('updateend', () => {
+          isAppendingRef.current = false
+          appendNext()
+        })
+        sourceBuffer.addEventListener('error', (e) => {
+          console.error('SourceBuffer 오류:', e)
+        })
+      })
+
+      ws.onmessage = (e) => {
+        queueRef.current.push(new Uint8Array(e.data))
+        appendNext()
+      }
+
+      ws.onclose = () => {
+        console.warn('📡 음성 WebSocket 닫힘')
+      }
+
+      ws.onerror = (err) => {
+        console.error('❌ WebSocket 오류:', err)
+      }
+    }
+
+    // 최초 1회만 연결
+    const timeout = setTimeout(() => {
+      connect()
+    }, 500)
+
+    return () => {
+      clearTimeout(timeout)
+      wsRef.current?.close()
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.remove()
+      }
+    }
+  }, [])
+
+  // ✅ 마이크 오디오 → STT WebSocket 전송
+  useEffect(() => {
+    const socket = new WebSocket('ws://localhost:8080/stt')
     socketRef.current = socket
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data)
       if (data.type === 'stt') {
-        setMessage(data.text) // ✅ 모든 참가자가 메시지 받음
+        setMessage(data.text)
+        console.log('data.text', data.text)
       }
     }
 
@@ -234,19 +355,23 @@ export default function GamePlayPage() {
       }
     }
 
-    // 조건: 발언자인 경우만 마이크 시작
     if (isMyTurn && turnInProgress) {
       startMic()
     }
 
     return () => {
       processorRef.current?.disconnect()
-      audioContextRef.current?.close()
+      try {
+        if (audioContextRef.current?.state !== 'closed') {
+          audioContextRef.current?.close()
+        }
+      } catch (err) {
+        console.warn('AudioContext 종료 에러:', err)
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop())
       socket.close()
     }
   }, [isMyTurn, turnInProgress])
-
 
   function float32ToInt16(buffer: Float32Array): Blob {
     const int16 = new Int16Array(buffer.length)
@@ -494,13 +619,30 @@ export default function GamePlayPage() {
           )}
         </ProfileSection>
         <InputBox>
-          <Input
-            type="text"
-            placeholder="Type something..."
-            value={message}
-            onChange={handleInputChange}
-            disabled={!isMyTurn || !turnInProgress}
-          />
+          {isMyTurn && turnInProgress ? (
+            <Input
+              type="text"
+              placeholder="Type something..."
+              value={message}
+              onChange={handleInputChange}
+              disabled={!isMyTurn || !turnInProgress}
+            />
+          ) : (
+            <div style={{ 
+              width: '100%', 
+              minHeight: 48, 
+              padding: 12, 
+              borderRadius: 20, 
+              background: '#222', 
+              color: '#21D35D', 
+              fontSize: 20, 
+              textAlign: 'center' 
+            }}>
+              {message && message.trim().length > 0
+                ? message
+                : '음성 인식 결과가 여기에 표시됩니다.'}
+            </div>
+          )}
         </InputBox>
         <PlayerGrid>
           {participants
