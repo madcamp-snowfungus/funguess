@@ -241,7 +241,9 @@ export default function GamePlayPage() {
 
     return () => {
       processorRef.current?.disconnect()
-      audioContextRef.current?.close()
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
       streamRef.current?.getTracks().forEach((t) => t.stop())
       socket.close()
     }
