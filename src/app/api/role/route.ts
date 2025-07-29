@@ -10,10 +10,10 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
     const { userId, gameCode } = await req.json();
 
-    // 1. 게임 코드로 game_id 조회
+    // 1. 게임 코드로 game_id와 keyword 조회
     const { data: game, error: gameError } = await supabase
         .from('games')
-        .select('id')
+        .select('id, keyword')
         .eq('game_code', gameCode)
         .single()
 
@@ -33,6 +33,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: '게임 참가자 정보를 찾을 수 없습니다.' }, { status: 404 })
     }
 
-    // 3. 역할 반환
-    return NextResponse.json({ role: participant.role }); // 'liar' or 'player'
+    // 3. 역할과 keyword 반환 (player)
+    if (participant.role === 'player') {
+        return NextResponse.json({
+            role: 'player',
+            keyword: game.keyword
+        });
+    }
+
+    return NextResponse.json({ 
+        role: participant.role // liar
+    });
 }
