@@ -102,7 +102,6 @@ const ResultPage = () => {
                 <VoteResultModal
                     isLiarWin={isLiarWin}
                     liarNickname={liarNickname}
-                    onClose={handleCloseModal}
                     onNext={handleNext}
                 />
             )}
@@ -111,7 +110,7 @@ const ResultPage = () => {
             {showFinalResult && (
                 <FinalResultModal
                     isLiarWin={isLiarWin}
-                    onClose={() => setShowFinalResult(false)}
+                    hideMessage={true}
                 />
             )}
         </Wrapper>
