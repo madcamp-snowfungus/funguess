@@ -255,7 +255,7 @@ export default function CreateGamePage() {
         <Title>FunGuess</Title>
 
         <Label>
-          게임 이름 :
+          게임 이름
           <Input
             type="text"
             value={gameName}
@@ -265,12 +265,12 @@ export default function CreateGamePage() {
         </Label>
 
         <Label>
-          제시어 종류 :
+          제시어 종류
           <Select
             value={keywordType}
             onChange={(e) => setKeywordType(e.target.value)}
           >
-            <option value="">제시어 종류를 선택하세요</option>
+            <option value="" disabled hidden>제시어 종류를 선택하세요</option>
             {keywordOptions.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
@@ -278,7 +278,7 @@ export default function CreateGamePage() {
         </Label>
 
         <Label>
-          게임 코드 :
+          게임 코드
           <CodeRow>
             <CodeBox>{gameCode}</CodeBox>
             <CopyButton onClick={handleCopy} aria-label="게임 코드 복사">
@@ -307,91 +307,149 @@ export default function CreateGamePage() {
 const Container = styled.main`
   display: flex;
   flex-direction: column;
-  justify-content: center;
   align-items: center;
-  background: #2d2d2d;
-  color: white;
+  justify-content: center;
   height: 100vh;
-`
+`;
 
 const FormWrapper = styled.div`
-  background: #111;
-  padding: 30px;
-  border-radius: 12px;
-  width: 25vw;
+  background: #1A1A1A;
+  padding: 40px;
+  border-radius: 20px;
+  width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 208, 156, 0.10);
+  border: 4px solid #00D09C;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-`
+  align-items: center;
+  gap: 24px;
+`;
 
 const Title = styled.h1`
+  color: #FAFAFA;
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
   text-align: center;
-  font-size: 36px;
-`
+  cursor: default;
+`;
 
 const Label = styled.label`
+  color: #FAFAFA;
   display: flex;
   flex-direction: column;
-  font-size: 14px;
-`
+  font-size: 18px;
+  font-weight: 500;
+  width: 100%;
+`;
 
 const Input = styled.input`
-  margin-top: 6px;
-  padding: 10px;
-  font-size: 20px;
-  border-radius: 5px;
-  border: none;
-`
+  height: 48px;
+  line-height: 48px;
+  margin-top: 10px;
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 8px;
+  border: 2px solid #00D09C;
+  background: #1A1A1A;
+  color: #FAFAFA;
+  outline: none;
+  transition: border 0.3s;
+
+  &::placeholder {
+    color: #707070;
+    font-size: 16px;
+  }
+
+  &:focus {
+    border: 2px solid #AEEADB;
+  }
+`;
 
 const Select = styled.select`
-  margin-top: 6px;
-  padding: 10px;
-  font-size: 20px;
-  border-radius: 5px;
-  border: none;
-  background-color: white;
-  color: black;
-`
+  height: 48px;
+  margin-top: 10px;
+  padding: 12px;
+  font-size: ${props => props.value === '' ? '16px' : '18px'};
+  border-radius: 8px;
+  border: 2px solid #00D09C;
+  background: #1A1A1A;
+  color: ${props => props.value === '' ? '#707070' : '#FAFAFA'};
+  outline: none;
+  transition: border 0.3s;
+  appearance: none;
+
+  &::placeholder {
+    color: #707070;
+    font-size: 14px;
+  }
+    
+  &:focus {
+    border: 2px solid #7EE8CD;
+  }
+
+  option {
+    background-color: #1A1A1A;
+    color: #FAFAFA;
+    font-size: 16px;
+    padding: 10px;
+
+    &:hover {
+      background-color: #2A2A2A;
+    }
+  }
+`;
 
 const CodeRow = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 6px;
-`
+  margin-top: 8px;
+`;
 
 const CodeBox = styled.div`
-  background: #333;
-  padding: 8px 14px;
-  border-radius: 5px;
-  font-weight: bold;
+  background: #333333;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 600;
   letter-spacing: 1px;
-`
+  color: #00D09C;
+  font-size: 20px;
+`;
 
 const CopyButton = styled.button`
   background: none;
   border: none;
-  color: white;
+  color: #00D09C;
   cursor: pointer;
-  font-size: 18px;
-`
+  font-size: 22px;
+  display: flex;
+  align-items: center;
+`;
 
 const CopiedText = styled.span`
-  font-size: 12px;
-  color: #00d09c;
-`
+  font-size: 14px;
+  color: #00D09C;
+  margin-left: 4px;
+`;
 
 const StartButton = styled.button`
-  background: #00d09c;
-  color: black;
-  padding: 12px;
-  font-size: 20px;
-  border: none;
+  background: linear-gradient(135deg, #00D09C 0%, #00FF88 100%);
+  color: #1A1A1A;
+  font-size: 22px;
+  font-weight: 700;
   border-radius: 8px;
-  font-weight: bold;
+  border: none;
+  padding: 14px 0;
+  width: 100%;
+  margin-top: 20px;
+  box-shadow: 0 4px 16px rgba(0, 208, 156, 0.10);
   cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
 
   &:hover {
-    background: #00b88a;
+    background: linear-gradient(135deg, #00C298 0%, #00FF88 100%);
+    transform: translateY(-1px) scale(1.01);
   }
-`
+`;
