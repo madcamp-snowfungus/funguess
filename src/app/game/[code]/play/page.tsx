@@ -142,6 +142,7 @@ export default function GamePlayPage() {
   const lastBlinkTimeRef = useRef<number>(0); // 추가: debounce용
 
   const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
+  const [modalVoiceAnalysis, setModalVoiceAnalysis] = useState<string | null>(null);
 
   // STT 관련
   const socketRef = useRef<WebSocket | null>(null)
@@ -262,6 +263,21 @@ export default function GamePlayPage() {
     if (!gameId) return;
     getParticipants(gameId).then((data) => setParticipants(data || []));
     fetchTurnsCount(gameId).then(setTurnsCount);
+  }, [gameId]);
+
+  const [keyword, setKeyword] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!gameId) return;
+    const fetchKeyword = async () => {
+      const { data, error } = await supabase
+        .from('games')
+        .select('keyword')
+        .eq('id', gameId)
+        .single();
+      if (data) setKeyword(data.keyword);
+    };
+    fetchKeyword();
   }, [gameId]);
 
   // Mediapipe FaceMesh CDN 동적 로드
@@ -405,15 +421,28 @@ export default function GamePlayPage() {
   // 턴 종료 핸들러
   const handleTurnEnd = async () => {
     setTurnInProgress(false);
-    // DB에 turns row 추가
-    console.log('handleTurnEnd blinkCount:', blinkCount);
+    let voiceAnalysisResult = null;
     if (gameId && speakingUserId && isMyTurn) {
+      // Gemini 분석 API 호출 (keyword 포함)
+      try {
+        const res = await fetch('/api/gemini-analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: message, keyword }),
+        });
+        const data = await res.json();
+        voiceAnalysisResult = data.analysis || null;
+      } catch (e) {
+        voiceAnalysisResult = null;
+      }
+      // 2. DB 저장
       await supabase.from('turns').insert({
         game_id: gameId,
         turn_number: currentTurn,
         turn_user_id: speakingUserId,
         transcript: message,
-        face_analysis_data: { blinkCount }, // 추가
+        face_analysis_data: { blinkCount },
+        voice_analysis_data: { analysis: voiceAnalysisResult },
         finished_at: new Date().toISOString(),
       });
     }
@@ -423,9 +452,9 @@ export default function GamePlayPage() {
       setShowAILoading(true);
       setTimeout(() => {
         setShowAILoading(false);
-        setShowAIResult(true);
+        setTimeout(() => setShowAIResult(true), 2000); // 1초 딜레이 후 모달 표시
       }, 1500);
-      setTimeout(() => setShowAIResult(false), 3500);
+      setTimeout(() => setShowAIResult(false), 4500); // 모달 닫는 시간도 1초 늘림
     }
     // 다음 턴으로 이동 or 투표로 이동
     setTimeout(() => {
@@ -450,14 +479,14 @@ export default function GamePlayPage() {
     setMessage(e.target.value)
   }
 
-  // AIResultModal이 열릴 때, turns 테이블에서 최신 턴의 blinkCount를 fetch
+  // AIResultModal이 열릴 때, turns 테이블에서 최신 턴의 blinkCount와 voice_analysis_data를 fetch
   useEffect(() => {
     if (!showAIResult || !gameId || !speakingUserId) return;
-    // 가장 최근 턴의 face_analysis_data.blinkCount를 가져온다
-    const fetchBlinkCount = async () => {
+    // 가장 최근 턴의 face_analysis_data.blinkCount, voice_analysis_data를 가져온다
+    const fetchAnalysisData = async () => {
       const { data, error } = await supabase
         .from('turns')
-        .select('face_analysis_data')
+        .select('face_analysis_data, voice_analysis_data')
         .eq('game_id', gameId)
         .eq('turn_user_id', speakingUserId)
         .eq('turn_number', currentTurn)
@@ -465,11 +494,13 @@ export default function GamePlayPage() {
         .limit(1);
       if (data && data.length > 0) {
         setModalBlinkCount(data[0].face_analysis_data?.blinkCount ?? null);
+        setModalVoiceAnalysis(data[0].voice_analysis_data?.analysis ?? null);
       } else {
         setModalBlinkCount(null);
+        setModalVoiceAnalysis(null);
       }
     };
-    fetchBlinkCount();
+    fetchAnalysisData();
   }, [showAIResult, gameId, speakingUserId, currentTurn]);
 
   return (
@@ -530,8 +561,8 @@ export default function GamePlayPage() {
         <AIResultModal
           speakerName={speakingUser}
           blinkCount={modalBlinkCount ?? 0}
-          expression="당황한 표정"
-          vagueness="모호한 발언"
+          // expression="당황한 표정"
+          vagueness={modalVoiceAnalysis ?? '모호한 발언'}
           liarProbability={76}
           onClose={() => setShowAIResult(false)}
         />
