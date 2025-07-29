@@ -3,7 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import FinalResultModal from '../../../../components/FinalResultModal';
+import VoteResultModal from '../../../../components/VoteResultModal';
+import FinalResultModal from '@/components/FinalResultModal';
+import { useRouter, useParams } from 'next/navigation';
 
 const players = [
     { name: '백서경', color: '#A8E5FF', votes: 1, emoji: '🍄' },
@@ -23,25 +25,40 @@ const aiChoice = {
     ],
 };
 
-const isLiarWin = false; // true: 라이어 승리, false: 시민 승리
+const isLiarWin = true; // true: 시민들의 추리 실패, false: 시민들의 추리 성공
 const liarNickname = '백목이'; // 라이어의 닉네임
 
 const ResultPage = () => {
+    const router = useRouter();
+    const params = useParams();
+    const code = params.code as string;
+    const [showVoteResult, setShowVoteResult] = useState(false);
     const [showFinalResult, setShowFinalResult] = useState(false);
 
     // 3초 후 FinalResultModal 표시
     useEffect(() => {
         const timer = setTimeout(() => {
-            setShowFinalResult(true);
+            setShowVoteResult(true);
         }, 3000);
 
         return () => clearTimeout(timer);
     }, []);
 
     const handleCloseModal = () => {
-        setShowFinalResult(false);
-        console.log('게임 종료');
-        // 게임 종료 후 메인페이지로 이동?
+        setShowVoteResult(false);
+    };
+
+    const handleNext = () => {
+        if (isLiarWin) {
+            // 시민 추측 실패 → 바로 최종 결과 모달 표시
+            setShowVoteResult(false);
+            setShowFinalResult(true);
+        } else {
+            // 시민 추측 성공 → 기존처럼 role에 따라 guess 페이지로 이동
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const role = userInfo.role || 'player';
+            router.push(`/game/${code}/guess?role=${role}`);
+        }
     };
 
     return (
@@ -80,11 +97,21 @@ const ResultPage = () => {
                 </AIContainer>
             </Content>
 
-            {showFinalResult && (
-                <FinalResultModal
+            {/* 시민들의 추리 성공 or 실패 */}
+            {showVoteResult && (
+                <VoteResultModal
                     isLiarWin={isLiarWin}
                     liarNickname={liarNickname}
                     onClose={handleCloseModal}
+                    onNext={handleNext}
+                />
+            )}
+
+            {/* 시민들의 추리 실패일 경우, 바로 라이어의 승리 모달이 뜸 */}
+            {showFinalResult && (
+                <FinalResultModal
+                    isLiarWin={isLiarWin}
+                    onClose={() => setShowFinalResult(false)}
                 />
             )}
         </Wrapper>

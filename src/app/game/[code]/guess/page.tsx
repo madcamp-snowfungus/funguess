@@ -1,25 +1,40 @@
 // src/app/game/[code]/guess/page.tsx
 'use client'
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
+import { useSearchParams } from "next/navigation";
+import FinalResultModal from "@/components/FinalResultModal";
 
 const GuessPage = () => {
-    const isLiar = false; // true: liar, false: player
+    const searchParams = useSearchParams();
+    const role = searchParams.get('role');
+    const isLiar = role === 'liar';
+
+    const [guess, setGuess] = useState("");
+    const [showResult, setShowResult] = useState(false);
+    const [isLiarWin, setIsLiarWin] = useState(false);
+
+    const answer = "정답";
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (guess.trim() === answer) {
+            setIsLiarWin(true);
+        } else {
+            setIsLiarWin(false);
+        }
+        setShowResult(true);
+    };
 
     // liar : 제시어 추측 화면
     if (isLiar) {
-        const [guess, setGuess] = useState("");
         return (
             <CenterWrapper>
                 <ModalCard>
                     <LiarTitle>라이어는 제시어를 추측해주세요.</LiarTitle>
-                    <SubText>모두의 대답을 참고해서 정답을 맞혀보세요!</SubText>
-                    <Form
-                        onSubmit={e => {
-                            e.preventDefault();
-                        }}
-                    >
+                    <SubText>모두의 발언을 참고해서 정답을 맞혀보세요!</SubText>
+                    <Form onSubmit={handleSubmit}>
                         <StyledInput
                             type="text"
                             value={guess}
@@ -32,6 +47,13 @@ const GuessPage = () => {
                         </StyledButton>
                     </Form>
                 </ModalCard>
+
+                {showResult && (
+                    <FinalResultModal
+                        isLiarWin={isLiarWin}
+                        onClose={() => setShowResult(false)}
+                    />
+                )}
             </CenterWrapper>
         );
     }

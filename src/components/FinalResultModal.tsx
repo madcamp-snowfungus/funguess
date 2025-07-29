@@ -1,130 +1,100 @@
-// components/FinalResultModal.tsx
+// src/components/FinalResultModal.tsx
 'use client'
 
-import styled from 'styled-components'
-import { motion } from 'framer-motion'
+import styled from 'styled-components';
+import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 interface FinalResultModalProps {
-  isLiarWin: boolean
-  liarNickname: string
-  onClose: () => void
+    isLiarWin: boolean;
 }
 
-export default function FinalResultModal({
-  isLiarWin,
-  liarNickname,
-  onClose,
-}: FinalResultModalProps) {
-  return (
-    <Overlay onClick={onClose}>
-      <ModalContainer
-        onClick={(e) => e.stopPropagation()}
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        <ResultIcon>
-          <img
-            src={isLiarWin ? '/assets/liar.png' : '/assets/liar_black.png'}
-            alt={isLiarWin ? '라이어' : '시민'}
-            width={120}
-          />
-        </ResultIcon>
-        
-        <Title>
-          {isLiarWin ? '라이어의 승리!' : '시민의 승리!'}
-        </Title>
-        
-        <Message>
-          {isLiarWin 
-            ? `라이어는 ${liarNickname}!` 
-            : '라이어를 찾아냈습니다!'
-          }
-        </Message>
+export default function FinalResultModal({ isLiarWin }: FinalResultModalProps) {
+    const router = useRouter();
 
-        <SubMessage>
-          {isLiarWin 
-            ? '라이어가 성공적으로 숨어있었습니다!' 
-            : '모든 시민이 협력하여 라이어를 찾아냈습니다!'
-          }
-        </SubMessage>
+    const handleClose = () => {
+        router.push('/game');
+    };
 
-        <CloseButton onClick={onClose}>
-          게임 종료
-        </CloseButton>
-      </ModalContainer>
-    </Overlay>
-  )
+    return (
+        <Overlay>
+            <ModalContainer
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                as={motion.div}
+            >
+                <Title>{isLiarWin ? '라이어의 승리' : '시민들의 승리'}</Title>
+                <Message>
+                    {isLiarWin
+                        ? '라이어가 제시어를 맞혔습니다!'
+                        : '라이어가 제시어를 맞히지 못했습니다!'}
+                </Message>
+                <CloseButton onClick={handleClose}>게임 종료</CloseButton>
+            </ModalContainer>
+        </Overlay>
+    );
 }
 
 const Overlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`
+    position: fixed;
+    inset: 0;
+    background: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+`;
 
 const ModalContainer = styled(motion.div)`
-  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-  border: 3px solid #00d09c;
-  border-radius: 20px;
-  padding: 40px;
-  width: 400px;
-  color: white;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  text-align: center;
-`
+    width: 420px;
+    height: 280px;
+    padding: 52px 30px;
+    border-radius: 20px;
+    background: #1A1A1A;
+    border: 4px solid #00D09C;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+`;
 
-const ResultIcon = styled.div`
-  font-size: 80px;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
-`
+const Title = styled.h2`
+    color: #00D09C;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 18px;
+    cursor: default;
+`;
 
-const Title = styled.h1`
-  font-size: 36px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: #FAFAFA;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-`
-
-const Message = styled.h2`
-  font-size: 24px;
-  font-weight: 600;
-  margin-bottom: 12px;
-  color: #00d09c;
-`
-
-const SubMessage = styled.p`
-  font-size: 16px;
-  color: #CCCCCC;
-  margin-bottom: 32px;
-  line-height: 1.5;
-`
+const Message = styled.div`
+    color: #FAFAFA;
+    font-size: 20px;
+    margin-bottom: 40px;
+    cursor: default;
+`;
 
 const CloseButton = styled.button`
-  width: 100%;
-  padding: 16px;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #00d09c 0%, #00ff88 100%);
-  color: #1a1a1a;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 208, 156, 0.3);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 208, 156, 0.4);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-` 
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    color: #1A1A1A;
+    background: linear-gradient(135deg, #00D09C 0%, #00FF88 100%);
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 208, 156, 0.3);
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(0, 208, 156, 0.4);
+    }
+    &:active {
+        transform: translateY(0);
+    }
+`;
