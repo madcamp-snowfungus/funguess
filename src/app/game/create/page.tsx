@@ -1,3 +1,4 @@
+// src/app/game/[code]/create/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,6 +9,8 @@ import { useRouter } from 'next/navigation'
 import WaitingModal from '@/components/WaitingModal'
 
 export default function CreateGamePage() {
+  const router = useRouter()
+
   const [gameName, setGameName] = useState('')
   const [keywordType, setKeywordType] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -17,8 +20,6 @@ export default function CreateGamePage() {
   const [participants, setParticipants] = useState<any[]>([])
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [gameId, setGameId] = useState<number | null>(null)
-  const [isLiarSelected, setIsLiarSelected] = useState(false) // 라이어 선택 플래그
-  const router = useRouter()
 
   const keywordOptions = [
     '일상 단어',
@@ -58,20 +59,7 @@ export default function CreateGamePage() {
           schema: 'public',
           table: 'game_participants',
           filter: `game_id=eq.${gameId}`
-        },
-        async (payload) => {
-          console.log('참가자 변경 감지:', payload)
-          
-          // 라이어가 이미 선택되었으면 구독 해제
-          if (isLiarSelected) {
-            console.log('라이어가 이미 선택되었으므로 구독 해제')
-            supabase.removeChannel(channel)
-            return
-          }
-          
-          await fetchParticipants()
-        }
-      )
+        }, fetchParticipants)
       .subscribe((status) => {
         console.log('실시간 구독 상태:', status)
         if (status === 'SUBSCRIBED') {
@@ -81,20 +69,18 @@ export default function CreateGamePage() {
         }
       })
 
-    // 테스트용: 5초마다 참가자 목록 새로고침 (라이어가 선택되지 않았을 때만)
+    // 3초마다 참가자 목록 새로고침
     const interval = setInterval(() => {
-      if (!isLiarSelected) {
-        console.log('주기적 참가자 목록 새로고침')
-        fetchParticipants()
-      }
-    }, 5000)
+      console.log('주기적 참가자 목록 새로고침')
+      fetchParticipants()
+    }, 3000)
 
     return () => {
       console.log('실시간 구독 해제:', gameId)
       clearInterval(interval)
       supabase.removeChannel(channel)
     }
-  }, [gameId, isLiarSelected]) // isLiarSelected를 의존성에 추가
+  }, [gameId])
 
   // 제시어 랜덤 선택
   const randomKeyword = async () => {
@@ -120,7 +106,6 @@ export default function CreateGamePage() {
 
     return selectedKeyword;
   };
-  
 
   // 참가자 목록 가져오기
   const fetchParticipants = async () => {
@@ -166,157 +151,13 @@ export default function CreateGamePage() {
       console.log('처리된 참가자 목록:', participantsList)
       setParticipants(participantsList)
 
-      // 4명이 모이면 라이어 선택
       if (participantsList.length === 4) {
-        console.log('=== 4명이 모였습니다! 라이어 선택 시작 ===')
-        console.log('참가자 수:', participantsList.length)
-        console.log('참가자 목록:', participantsList)
-        await selectLiar()
+        console.log('4명이 모였습니다. 게임 시작 준비 완료!')
       } else {
         console.log('아직 4명이 아닙니다. 현재:', participantsList.length)
       }
     } catch (error) {
       console.error('참가자 목록 가져오기 중 오류:', error)
-    }
-  }
-
-  // 라이어 선택
-  const selectLiar = async () => {
-    console.log('=== 라이어 선택 함수 시작 ===')
-    console.log('gameId:', gameId)
-    console.log('이미 라이어가 선택되었는지:', isLiarSelected)
-
-    if (!gameId) {
-      console.log('gameId가 없어서 리턴')
-      return
-    }
-
-    // 이미 라이어가 선택되었으면 리턴
-    if (isLiarSelected) {
-      console.log('이미 라이어가 선택되었습니다.')
-      return
-    }
-
-    // 최신 참가자 데이터를 직접 가져오기
-    console.log('최신 참가자 데이터 가져오기...')
-    const { data: latestParticipants, error } = await supabase
-      .from('game_participants')
-      .select(`
-        *,
-        users!inner(user_nickname)
-      `)
-      .eq('game_id', gameId)
-      .order('joined_at', { ascending: true })
-
-    if (error) {
-      console.error('최신 참가자 데이터 가져오기 오류:', error)
-      return
-    }
-
-    console.log('최신 참가자 데이터:', latestParticipants)
-
-    if (!latestParticipants || latestParticipants.length !== 4) {
-      console.log('참가자가 4명이 아닙니다. 현재:', latestParticipants?.length || 0)
-      return
-    }
-
-    // 이미 라이어가 있는지 확인
-    const existingLiar = latestParticipants.find(p => p.role === 'liar')
-    if (existingLiar) {
-      console.log('이미 라이어가 있습니다:', existingLiar)
-      setIsLiarSelected(true)
-      
-      // 게임 상태도 확인
-      const { data: gameData } = await supabase
-        .from('games')
-        .select('status, liar_user_id')
-        .eq('id', gameId)
-        .single()
-      
-      if (gameData?.status === 'playing' && gameData?.liar_user_id) {
-        console.log('게임이 이미 시작되었습니다. 게임 페이지로 이동')
-        setTimeout(() => {
-          router.push(`/game/${gameCode}/play`)
-        }, 1000)
-      }
-      return
-    }
-
-    // 게임 상태도 확인 (이미 라이어가 설정되어 있는지)
-    const { data: gameData } = await supabase
-      .from('games')
-      .select('status, liar_user_id')
-      .eq('id', gameId)
-      .single()
-    
-    if (gameData?.liar_user_id) {
-      console.log('게임에 이미 라이어가 설정되어 있습니다:', gameData.liar_user_id)
-      setIsLiarSelected(true)
-      return
-    }
-
-    // 참가자 중 랜덤으로 라이어 선택
-    const randomIndex = Math.floor(Math.random() * latestParticipants.length)
-    const selectedParticipant = latestParticipants[randomIndex]
-    const liar = {
-      id: selectedParticipant.id,
-      user_id: selectedParticipant.user_id,
-      nickname: selectedParticipant.users?.user_nickname || '알 수 없음',
-      isHost: selectedParticipant.is_host,
-      role: selectedParticipant.role,
-      joinedAt: selectedParticipant.joined_at
-    }
-
-    console.log('랜덤 인덱스:', randomIndex)
-    console.log('선택된 라이어:', liar)
-
-    // liar가 undefined인지 확인
-    if (!liar || !liar.user_id) {
-      console.error('라이어 선택 실패: 유효하지 않은 참가자 데이터')
-      return
-    }
-
-    console.log('API 호출 시작...')
-    try {
-      // API 라우트를 통해 라이어 설정
-      const response = await fetch('/api/games/select-liar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          gameId: gameId,
-          liarUserId: liar.user_id
-        })
-      })
-
-      console.log('API 응답 상태:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('라이어 설정 API 오류:', errorData)
-        return
-      }
-
-      const result = await response.json()
-      console.log('라이어 설정 성공:', result)
-
-      // 라이어 선택 완료 플래그 설정
-      setIsLiarSelected(true)
-
-      // 실시간 구독 해제
-      const channel = supabase.channel(`game_participants_${gameId}`)
-      supabase.removeChannel(channel)
-      console.log('라이어 선택 완료 후 실시간 구독 해제')
-
-      // 잠시 대기 후 게임 시작 페이지로 이동
-      setTimeout(() => {
-        console.log('게임 시작 페이지로 이동:', `/game/${gameCode}/play`)
-        router.push(`/game/${gameCode}/play`)
-      }, 1000)
-      
-    } catch (error) {
-      console.error('라이어 설정 중 오류:', error)
     }
   }
 
@@ -450,11 +291,12 @@ export default function CreateGamePage() {
         <StartButton onClick={handleStart}>시작하기</StartButton>
       </FormWrapper>
 
-      {/* ✅ 모달 */}
+      {/* 모달 */}
       {isWaiting && (
         <WaitingModal
           gameCode={gameCode}
           participants={participants}
+          keyword={keyword}
           onClose={() => setIsWaiting(false)}
         />
       )}
@@ -552,27 +394,4 @@ const StartButton = styled.button`
   &:hover {
     background: #00b88a;
   }
-`
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 999;
-`
-
-const ModalContent = styled.div`
-  background: #222;
-  color: white;
-  padding: 30px;
-  border-radius: 10px;
-  width: 350px;
-  text-align: center;
-  box-shadow: 0 0 10px #000;
 `
