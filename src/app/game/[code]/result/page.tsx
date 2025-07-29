@@ -1,8 +1,9 @@
 // src/app/game/[code]/result/page.tsx
 'use client'
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import FinalResultModal from '../../../../components/FinalResultModal';
 
 const players = [
     { name: '백서경', color: '#A8E5FF', votes: 1, emoji: '🍄' },
@@ -22,7 +23,27 @@ const aiChoice = {
     ],
 };
 
+const isLiarWin = false; // true: 라이어 승리, false: 시민 승리
+const liarNickname = '백목이'; // 라이어의 닉네임
+
 const ResultPage = () => {
+    const [showFinalResult, setShowFinalResult] = useState(false);
+
+    // 3초 후 FinalResultModal 표시
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setShowFinalResult(true);
+        }, 3000);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    const handleCloseModal = () => {
+        setShowFinalResult(false);
+        console.log('게임 종료');
+        // 게임 종료 후 메인페이지로 이동?
+    };
+
     return (
         <Wrapper>
             <Title>투표 결과</Title>
@@ -58,6 +79,14 @@ const ResultPage = () => {
                     </AIOthers>
                 </AIContainer>
             </Content>
+
+            {showFinalResult && (
+                <FinalResultModal
+                    isLiarWin={isLiarWin}
+                    liarNickname={liarNickname}
+                    onClose={handleCloseModal}
+                />
+            )}
         </Wrapper>
     );
 };
