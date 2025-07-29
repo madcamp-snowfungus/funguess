@@ -29,6 +29,7 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
   const [userId, setUserId] = useState<number | null>(null);
   const [gameId, setGameId] = useState<number | null>(null);
 
+  // userId, gameId 불러오는 useEffect (최초 한 번 실행)
   useEffect(() => {
     const storedUser = localStorage.getItem('userInfo');
     const storedGameId = localStorage.getItem('currentGameId');
@@ -39,20 +40,6 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
     if (storedUser && storedGameId) {
       const parsed = JSON.parse(storedUser);
       console.log('[DEBUG] parsed userInfo:', parsed);
-      setUserId(parsed.id);
-      setGameId(Number(storedGameId));
-    }
-  }, []);
-
-  // userId, gameId 불러오는 useEffect (최초 한 번 실행)
-  useEffect(() => {
-    const storedUser = localStorage.getItem('userInfo');
-    const storedGameId = localStorage.getItem('currentGameId');
-
-    if (storedUser && storedGameId) {
-      const parsed = JSON.parse(storedUser);
-      console.log('[DEBUG] parsed userInfo:', parsed);
-
       setUserId(Number(parsed.id));
       setGameId(Number(storedGameId));
     }
