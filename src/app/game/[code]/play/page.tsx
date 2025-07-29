@@ -102,6 +102,18 @@ const Dot = styled.span`
   vertical-align: middle;
 `
 
+// Mediapipe FaceMesh를 위한 CDN URL
+const MEDIAPIPE_FACEMESH_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
+const MEDIAPIPE_CAMERA_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
+
+// Mediapipe 타입 확장
+declare global {
+  interface Window {
+    FaceMesh?: any;
+    Camera?: any;
+  }
+}
+
 export default function GamePlayPage() {
   const params = useParams();
   const router = useRouter();
@@ -120,6 +132,16 @@ export default function GamePlayPage() {
   const [message, setMessage] = useState('');
   const [turnsCount, setTurnsCount] = useState(0); // for progress
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [blinkCount, setBlinkCount] = useState(0);
+  const faceMeshRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const [faceMeshReady, setFaceMeshReady] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [lastEAR, setLastEAR] = useState(0);
+  const [blinkActive, setBlinkActive] = useState(false);
+  const lastBlinkTimeRef = useRef<number>(0); // 추가: debounce용
+
+  const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
 
   // 참가자 목록 불러오기
   const getParticipants = async (gameId: number) => {
@@ -152,6 +174,13 @@ export default function GamePlayPage() {
   const speakingUserId = participants[speakingIdx]?.user_id?.toString();
   const isMyTurn = myUserId && speakingUserId === myUserId;
 
+  // useRef 동기화는 isMyTurn 선언 이후에 위치해야 함
+  const isMyTurnRef = useRef(false);
+  useEffect(() => { isMyTurnRef.current = !!isMyTurn; }, [isMyTurn]);
+
+  const blinkActiveRef = useRef(false);
+  useEffect(() => { blinkActiveRef.current = blinkActive; }, [blinkActive]);
+
   // 참가자, 내 정보, 턴 개수 초기화
   useEffect(() => {
     const storedId = localStorage.getItem('currentGameId');
@@ -171,6 +200,131 @@ export default function GamePlayPage() {
     fetchTurnsCount(gameId).then(setTurnsCount);
   }, [gameId]);
 
+  // Mediapipe FaceMesh CDN 동적 로드
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.FaceMesh) {
+      const script = document.createElement('script');
+      script.src = MEDIAPIPE_FACEMESH_CDN;
+      script.async = true;
+      script.onload = () => setFaceMeshReady(true);
+      document.body.appendChild(script);
+    } else {
+      setFaceMeshReady(true);
+    }
+  }, []);
+
+  // Camera utils도 필요 (cameraReady)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.Camera) {
+      const script2 = document.createElement('script');
+      script2.src = MEDIAPIPE_CAMERA_CDN;
+      script2.async = true;
+      script2.onload = () => setCameraReady(true);
+      document.body.appendChild(script2);
+    } else {
+      setCameraReady(true);
+    }
+  }, []);
+
+  // EAR 계산 함수 (양쪽 눈 평균)
+  function calcEAR(landmarks: any) {
+    // Mediapipe의 눈 랜드마크 인덱스 (좌/우)
+    // 왼쪽: 33, 160, 158, 133, 153, 144
+    // 오른쪽: 362, 385, 387, 263, 373, 380
+    function getEAR(indices: number[]) {
+      const [p1, p2, p3, p4, p5, p6] = indices.map(i => landmarks[i]);
+      function dist(a: any, b: any) {
+        return Math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2);
+      }
+      return (
+        (dist(p2, p6) + dist(p3, p5)) / (2.0 * dist(p1, p4))
+      );
+    }
+    const leftEAR = getEAR([33, 160, 158, 133, 153, 144]);
+    const rightEAR = getEAR([362, 385, 387, 263, 373, 380]);
+    return (leftEAR + rightEAR) / 2.0;
+  }
+
+  // 웹캠 스트림 연결 (게임 시작 시 한 번만)
+  useEffect(() => {
+    let stream: MediaStream | null = null;
+    if (navigator.mediaDevices?.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        })
+        .catch((err) => {
+          console.error('웹캠 연결 오류:', err)
+          alert('웹캠 접근 권한을 허용해주세요!')
+        })
+    }
+    // cleanup에서 스트림을 끊지 않음 (게임 내내 유지)
+  }, []);
+
+  // FaceMesh, Camera 인스턴스는 게임 시작 시 한 번만 생성
+  useEffect(() => {
+    if (!faceMeshReady || !cameraReady || !videoRef.current) return;
+    let running = true;
+    const faceMesh = new window.FaceMesh({
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    });
+    faceMesh.setOptions({
+      maxNumFaces: 1,
+      refineLandmarks: true,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5
+    });
+    faceMesh.onResults((results: any) => {
+      if (!isMyTurnRef.current) return;
+      if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
+      const landmarks = results.multiFaceLandmarks[0];
+      const ear = calcEAR(landmarks);
+      const BLINK_THRESHOLD = 0.21;
+      const BLINK_DEBOUNCE_MS = 200;
+      const now = Date.now();
+      if (ear < BLINK_THRESHOLD && !blinkActiveRef.current) {
+        if (now - lastBlinkTimeRef.current > BLINK_DEBOUNCE_MS) {
+          setBlinkCount(prev => prev + 1);
+          lastBlinkTimeRef.current = now;
+        }
+        setBlinkActive(true);
+      } else if (ear >= BLINK_THRESHOLD && blinkActiveRef.current) {
+        setBlinkActive(false);
+      }
+      setLastEAR(ear);
+    });
+    const camera = new window.Camera(videoRef.current, {
+      onFrame: async () => {
+        if (!running) return;
+        await faceMesh.send({ image: videoRef.current });
+      },
+      width: 480,
+      height: 360
+    });
+    camera.start();
+    faceMeshRef.current = faceMesh;
+    cameraRef.current = camera;
+    return () => {
+      running = false;
+      // 게임 전체가 끝날 때만 close/stop
+      // if (cameraRef.current) cameraRef.current.stop();
+      // if (faceMeshRef.current && faceMeshRef.current.close) faceMeshRef.current.close();
+    };
+  }, [faceMeshReady, cameraReady]);
+
+  // 턴이 바뀔 때마다 blinkCount 등만 초기화
+  useEffect(() => {
+    if (isMyTurn) {
+      setBlinkCount(0);
+      setLastEAR(0);
+      setBlinkActive(false);
+      lastBlinkTimeRef.current = 0;
+    }
+  }, [isMyTurn, currentTurn]);
+
   // 턴 타이머
   useEffect(() => {
     if (!turnInProgress) return;
@@ -184,33 +338,18 @@ export default function GamePlayPage() {
     return () => clearInterval(timer);
   }, [turnInProgress, turnTimer]);
 
-  // 웹캠
-  useEffect(() => {
-    if (navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        .then((stream) => {
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream
-          }
-        })
-        .catch((err) => {
-          console.error('웹캠 연결 오류:', err)
-          alert('웹캠 접근 권한을 허용해주세요!')
-        })
-    }
-  }, []);
-
   // 턴 종료 핸들러
   const handleTurnEnd = async () => {
     setTurnInProgress(false);
     // DB에 turns row 추가
+    console.log('handleTurnEnd blinkCount:', blinkCount);
     if (gameId && speakingUserId && isMyTurn) {
       await supabase.from('turns').insert({
         game_id: gameId,
         turn_number: currentTurn,
         turn_user_id: speakingUserId,
         transcript: message,
-        // face_analysis_data, voice_analysis_data 등은 추후 추가
+        face_analysis_data: { blinkCount }, // 추가
         finished_at: new Date().toISOString(),
       });
     }
@@ -246,6 +385,28 @@ export default function GamePlayPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value)
   }
+
+  // AIResultModal이 열릴 때, turns 테이블에서 최신 턴의 blinkCount를 fetch
+  useEffect(() => {
+    if (!showAIResult || !gameId || !speakingUserId) return;
+    // 가장 최근 턴의 face_analysis_data.blinkCount를 가져온다
+    const fetchBlinkCount = async () => {
+      const { data, error } = await supabase
+        .from('turns')
+        .select('face_analysis_data')
+        .eq('game_id', gameId)
+        .eq('turn_user_id', speakingUserId)
+        .eq('turn_number', currentTurn)
+        .order('finished_at', { ascending: false })
+        .limit(1);
+      if (data && data.length > 0) {
+        setModalBlinkCount(data[0].face_analysis_data?.blinkCount ?? null);
+      } else {
+        setModalBlinkCount(null);
+      }
+    };
+    fetchBlinkCount();
+  }, [showAIResult, gameId, speakingUserId, currentTurn]);
 
   return (
     <Container>
@@ -304,7 +465,7 @@ export default function GamePlayPage() {
       {showAIResult && (
         <AIResultModal
           speakerName={speakingUser}
-          blinkCount={10}
+          blinkCount={modalBlinkCount ?? 0}
           expression="당황한 표정"
           vagueness="모호한 발언"
           liarProbability={76}
