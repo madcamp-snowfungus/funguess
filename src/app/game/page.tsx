@@ -244,89 +244,113 @@ const Container = styled.main`
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background-color: #111;
-  color: white;
-`
+`;
 
 const Title = styled.h1`
-  font-size: 50px;
-  font-weight: bold;
-  margin-bottom: 5vh;
-`
+  color: #FAFAFA;
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 50px;
+  letter-spacing: 1px;
+  cursor: default;
+`;
 
 const ButtonWrapper = styled.div`
   display: flex;
-  gap: 5vw;
-`
-//#4ee7c2;
+  gap: 40px;
+`;
+
 const CreateButton = styled.button`
-  background-color: #21D35D;
-  width: 30vw;
-  height: 35vh;
+  background: linear-gradient(135deg, #00D09C 0%, #00FF88 100%);
+  width: 400px;
+  height: 300px;
   padding: 40px;
-  font-size: 36px;
+  font-size: 30px;
   font-weight: 700;
-  color: black;
-  border-radius: 16px;
+  color: #121212;
+  border-radius: 20px;
   cursor: pointer;
   border: none;
+  box-shadow: 0 8px 32px rgba(0, 208, 156, 0.15);
+  transition: all 0.25s ease;
 
   &:hover {
-    background-color:rgb(23, 202, 83);
+    transform: translateY(-1px) scale(1.01);
+    // background: linear-gradient(135deg, #00C298 0%, #00E67A 100%);
+    // box-shadow: 0 8px 20px rgba(0, 208, 156, 0.25);
   }
-`
-//#635bff;
+
+  &:active {
+    transform: translateY(-1px) scale(0.99);
+  }
+`;
+
 const JoinBox = styled.div`
-  background-color: #4791FE;
-  width: 30vw;
-  height: 35vh;
-  padding: 3vw;
-  border-radius: 16px;
+  background: #1A1A1A;
+  width: 400px;
+  height: 300px;
+  padding: 32px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-`
+  border: 4px solid #00D09C;
+  box-shadow: 0 8px 32px rgba(0, 208, 156, 0.10);
+`;
 
 const JoinText = styled.span`
-  margin-bottom: 12px;
-  font-size: 32px;
-  font-weight: 600;
-`
+  color: #00D09C;
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 36px;
+  cursor: default;
+`;
 
 const Input = styled.input`
-  width: 20vw;
-  padding: 1vh;
-  border: 1px solid #FAFAFA;
-  border-radius: 4px;
-  background-color: #000;
-  color: #fff;
-  font-size: 20px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 280px;
+  height: 50px;
+  padding: 12px;
+  border: 2px solid #00D09C;
+  border-radius: 8px;
+  background: #1A1A1A;
+  color: #FAFAFA;
+  font-size: 18px;
+  text-align: left;
+  outline: none;
+  transition: border 0.3s;
 
   &::placeholder {
     color: #707070;
-    font-size: 12px;
+    font-size: 14px;
   }
-`
+
+  &:focus {
+    border: 2px solid #AEEADB;
+  }
+`;
 
 const JoinButton = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 280px;
+  height: 50px;
   margin-top: 16px;
-  width: 20vw;
-  padding: 5px 0;
-  background-color: #ffffff;
-  color: #4791FE;
-  font-weight: bold;
-  font-size: 20px;
+  background: linear-gradient(135deg, #00D09C 0%, #00FF88 100%);
+  color: #1A1A1A;
+  font-size: 18px;
+  font-weight: 700;
   border-radius: 8px;
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 208, 156, 0.10);
+  transition: background 0.2s, transform 0.2s;
 
   &:hover {
-    background-color: #e8e8e8;
+    background: linear-gradient(135deg, #00C298 0%, #00FF88 100%);
+    transform: translateY(-1px) scale(1.01);
   }
-`
+`;
