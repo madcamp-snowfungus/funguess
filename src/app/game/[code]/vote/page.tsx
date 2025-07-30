@@ -1,25 +1,87 @@
 // src/app/game/[code]/vote/page.tsx
 'use client'
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { useRouter } from 'next/navigation';
-import { useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabaseClient';
 
-const players = [
-    { name: '백서경', color: '#A8E5FF' },
-    { name: '하예영', color: '#FFF2AA' },
-    { name: '이연재', color: '#B5FFC3' },
-];
+interface Player {
+    user_id: number;
+    nickname: string;
+    color: string;
+}
+
+const cardColors = ['#F26DAC', '#21D35D', '#4791FE', '#EDE42F'];
 
 const VotePage = () => {
     const router = useRouter();
     const params = useParams();
-    const code = params.code;
+    const code = params.code as string;
 
-    const handleVote = (playerName: string) => {
-        alert(`${playerName} 님에게 투표했습니다.`);
-        router.push(`/game/${code}/result`);
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [gameId, setGameId] = useState<number | null>(null);
+    const [userId, setUserId] = useState<number | null>(null);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+            const myId = Number(userInfo?.id);
+            setUserId(myId);
+
+            // 1. 게임 ID 조회
+            const res = await supabase
+                .from('games')
+                .select('id')
+                .eq('game_code', code)
+                .single();
+            
+            const gameId = res.data?.id;
+            setGameId(gameId);
+            if (!gameId) return;
+
+            // 2. 참가자 목록 조회
+            const { data } = await supabase
+                .from('game_participants')
+                .select('user_id, turn_order, users:user_id(user_nickname)')
+                .eq('game_id', gameId);
+
+            console.log('투표 참가자', data);
+            console.log('gameId:', gameId);
+
+            if (data) {
+                setPlayers(
+                    data
+                        .filter((p: any) => p.user_id !== myId)
+                        .map((p: any) => ({
+                            user_id: p.user_id,
+                            nickname: p.users?.user_nickname || '알 수 없음',
+                            color: cardColors[(p.turn_order ?? 0) % cardColors.length],
+                        }))
+                );
+            }
+        };
+
+        fetchData();
+    }, [code]);
+
+    const handleVote = async (targetUserId: number) => {
+        if (!gameId || !userId) return;
+
+        const targetPlayer = players.find(p => p.user_id === targetUserId);
+
+        const { error } = await supabase.from('votes').insert({
+            game_id: gameId,
+            voter_user_id: userId,
+            target_user_id: targetUserId,
+        });
+
+        if (error) {
+            alert('투표에 실패했습니다.');
+        } else {
+            alert(`${targetPlayer?.nickname || '알 수 없음'} 님에게 투표가 완료되었습니다.`);
+            router.push(`/game/${code}/result`);
+        }
     };
 
     return (
@@ -27,8 +89,8 @@ const VotePage = () => {
             <Title>라이어를 선택해주세요!</Title>
             <CardWrapper>
                 {players.map((player, idx) => (
-                <Card key={idx} color={player.color} onClick={() => handleVote(player.name)}>
-                    <PlayerName>{player.name}</PlayerName>
+                <Card key={idx} color={player.color} onClick={() => handleVote(player.user_id)}>
+                    <PlayerName>{player.nickname}</PlayerName>
                 </Card>
                 ))}
             </CardWrapper>
