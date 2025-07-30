@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 
 export async function POST(req: NextRequest) {
-
     const { gameCode, isLiarWin } = await req.json();
+
+    console.log('[DEBUG] gameCode:', gameCode);
+    console.log('[DEBUG] isLiarWin:', isLiarWin);
 
     const { data: game, error } = await supabase
         .from('games')
@@ -13,6 +15,7 @@ export async function POST(req: NextRequest) {
         .single();
 
     if (error || !game) {
+        console.error('[ERROR] 게임 찾기 실패:', error);
         return NextResponse.json({ error: '게임을 찾을 수 없습니다' }, { status: 404 });
     }
 
@@ -22,6 +25,7 @@ export async function POST(req: NextRequest) {
         .eq('id', game.id);
 
     if (updateError) {
+        console.error('[ERROR] 게임 상태 업데이트 실패:', updateError);
         return NextResponse.json({ error: '게임 상태 업데이트 실패' }, { status: 500 });
     }
 
