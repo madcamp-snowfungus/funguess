@@ -68,7 +68,7 @@ const ResultPage = () => {
 
         const timer = setTimeout(() => {
             setShowVoteResult(true);
-        }, 3000);
+        }, 5000);
 
         return () => clearTimeout(timer);
     }, [code]);

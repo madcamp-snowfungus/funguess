@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import styled from 'styled-components';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const RevealPage = () => {
     const router = useRouter();
@@ -12,6 +13,7 @@ const RevealPage = () => {
 
     const [role, setRole] = useState<string | null>(null); // 'liar' or 'player'
     const [keyword, setKeyword] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
     const code = params.code as string;
 
     useEffect(() => {
@@ -33,6 +35,10 @@ const RevealPage = () => {
 
         setRole(roleValue);
         setKeyword(keywordValue);
+        
+        setTimeout(() => {
+            setIsLoading(false);
+        }, 3000);
     }, [searchParams, router]);
 
     useEffect(() => {
@@ -49,6 +55,10 @@ const RevealPage = () => {
         console.log('code:', code);
         console.log('role:', role);
     }, [role, code]);
+
+    if (isLoading) {
+        return <LoadingScreen message="역할을 확인하고 있습니다.." />;
+    }
 
     return (
         <Wrapper>

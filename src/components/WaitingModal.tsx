@@ -6,6 +6,7 @@ import styled from 'styled-components';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/supabaseClient';
+import LoadingScreen from './LoadingScreen';
 
 interface Participant {
   id: number
@@ -28,6 +29,7 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
 
   const [userId, setUserId] = useState<number | null>(null);
   const [gameId, setGameId] = useState<number | null>(null);
+  const [showLoading, setShowLoading] = useState(false);
 
   // userId, gameId 불러오는 useEffect (최초 한 번 실행)
   useEffect(() => {
@@ -90,10 +92,16 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
           console.log('[DEBUG] /api/role 응답:', data);
 
           if (data.role === 'liar') {
-            router.push(`/game/${gameCode}/reveal?role=liar`);
+            setShowLoading(true);
+            setTimeout(() => {
+              router.push(`/game/${gameCode}/reveal?role=liar`);
+            }, 2000);
           } else if (data.role === 'player' && data.keyword) {
             const encodedKeyword = encodeURIComponent(data.keyword);
-            router.push(`/game/${gameCode}/reveal?role=player&keyword=${encodedKeyword}`);
+            setShowLoading(true);
+            setTimeout(() => {
+              router.push(`/game/${gameCode}/reveal?role=player&keyword=${encodedKeyword}`);
+            }, 2000);
           } else {
             console.warn('[WARN] 역할이 비정상적이거나 keyword 없음', data);
           }
@@ -172,7 +180,10 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
           ? `/game/${gameCode}/reveal?role=liar`
           : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
 
-        router.push(url);
+        setShowLoading(true);
+        setTimeout(() => {
+          router.push(url);
+        }, 2000);
         return;
       }
     } else {
@@ -213,12 +224,19 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
       ? `/game/${gameCode}/reveal?role=liar`
       : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
 
-    router.push(url);
+    setShowLoading(true);
+    setTimeout(() => {
+      router.push(url);
+    }, 2000);
 
     if (onClose) onClose();
   };
 
   const isDisabled = participants.length < 4;
+
+  if (showLoading) {
+    return <LoadingScreen message="게임을 시작하고 있습니다..." />;
+  }
 
   return (
     <ModalOverlay>
