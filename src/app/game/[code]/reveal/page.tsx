@@ -1,7 +1,7 @@
 // src/app/game/[code]/reveal/page.tsx
 'use client'
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import styled from 'styled-components';
 
@@ -10,16 +10,45 @@ const RevealPage = () => {
     const searchParams = useSearchParams();
     const params = useParams();
 
-    const role = searchParams.get('role'); // 'liar' or 'player'
-    const code = params.code;
-    const keyword = '백목이';
+    const [role, setRole] = useState<string | null>(null); // 'liar' or 'player'
+    const [keyword, setKeyword] = useState<string | null>(null);
+    const code = params.code as string;
 
     useEffect(() => {
+        const roleValue = searchParams.get('role');
+        const keywordValueRaw = searchParams.get('keyword');
+        const keywordValue = keywordValueRaw ? decodeURIComponent(keywordValueRaw) : null;
+
+        console.log('RevealPage URL params:', {
+            role: roleValue,
+            keyword: keywordValue,
+            fullURL: typeof window !== 'undefined' ? window.location.href : ''
+        });
+
+        if (!roleValue || !['liar', 'player'].includes(roleValue)) {
+            alert('잘못된 접근입니다.');
+            router.replace('/');
+            return;
+        }
+
+        setRole(roleValue);
+        setKeyword(keywordValue);
+    }, [searchParams, router]);
+
+    useEffect(() => {
+        if (!role) return;
+
         const timer = setTimeout(() => {
             router.push(`/game/${code}/play`);
         }, 5000);
+
         return () => clearTimeout(timer);
-    }, [router, code]);
+    }, [router, code, role]);
+
+    useEffect(() => {
+        console.log('code:', code);
+        console.log('role:', role);
+    }, [role, code]);
 
     return (
         <Wrapper>
@@ -29,10 +58,14 @@ const RevealPage = () => {
                 <PostIt src="/assets/post-it.png" />
                 {role === 'liar' ? (
                     <LiarImage src="/assets/liar.png" />
-                ) : (
+                ) : role === 'player' && keyword ? (
                     <KeywordWrapper>
                         <KeywordTitle>제시어</KeywordTitle>
                         <KeywordText>{keyword}</KeywordText>
+                    </KeywordWrapper>
+                ) : (
+                    <KeywordWrapper>
+                        <KeywordTitle>로딩 중..</KeywordTitle>
                     </KeywordWrapper>
                 )}
             </PostItWrapper>

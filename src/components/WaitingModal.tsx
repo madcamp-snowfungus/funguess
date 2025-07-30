@@ -1,9 +1,11 @@
-// components/WaitingModal.tsx
+// src/components/WaitingModal.tsx
 'use client'
 
-import styled from 'styled-components'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react';
+import styled from 'styled-components';
+import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabaseClient';
 
 interface Participant {
   id: number
@@ -15,22 +17,202 @@ interface Participant {
 }
 
 interface WaitingModalProps {
-  gameCode: string
-  participants: Participant[]
-  onClose?: () => void
+  gameCode: string;
+  participants: Participant[];
+  keyword: string;
+  onClose?: () => void;
 }
 
-export default function WaitingModal({ gameCode, participants, onClose }: WaitingModalProps) {
-  const router = useRouter()
+export default function WaitingModal({ gameCode, participants, keyword, onClose }: WaitingModalProps) {
+  const router = useRouter();
 
-  const handleStart = () => {
-    if (participants.length >= 4) {
-      router.push(`/game/${gameCode}/play`)
-      if (onClose) onClose()
+  const [userId, setUserId] = useState<number | null>(null);
+  const [gameId, setGameId] = useState<number | null>(null);
+
+  // userId, gameId 불러오는 useEffect (최초 한 번 실행)
+  useEffect(() => {
+    const storedUser = localStorage.getItem('userInfo');
+    const storedGameId = localStorage.getItem('currentGameId');
+
+    console.log('[DEBUG] userInfo 로드됨:', storedUser);
+    console.log('[DEBUG] gameId 로드됨:', storedGameId);
+
+    if (storedUser && storedGameId) {
+      const parsed = JSON.parse(storedUser);
+      console.log('[DEBUG] parsed userInfo:', parsed);
+      setUserId(Number(parsed.id));
+      setGameId(Number(storedGameId));
     }
-  }
+  }, []);
 
-  const isDisabled = participants.length < 4
+  // 구독은 userId, gameId가 모두 준비된 후에만 실행
+  useEffect(() => {
+    if (userId === null || gameId === null) return;
+
+    console.log('✅ 구독 시도 중', { userId, gameId });
+
+    const channel = supabase
+      .channel(`game_status_${gameId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        async (payload) => {
+          console.log('게임 시작 감지됨', payload);
+
+          if (payload.new.status !== 'started') {
+            console.log('게임 상태가 started가 아님:', payload.new.status);
+            return;
+          }
+
+          const res = await fetch('/api/role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, gameCode }),
+          });
+
+          if (!res.ok) {
+            console.error('❌ 역할 API 요청 실패', await res.text());
+            return;
+          }
+
+          const data = await res.json();
+          console.log('[DEBUG] /api/role 응답:', data);
+
+          if (data.role === 'liar') {
+            router.push(`/game/${gameCode}/reveal?role=liar`);
+          } else if (data.role === 'player' && data.keyword) {
+            const encodedKeyword = encodeURIComponent(data.keyword);
+            router.push(`/game/${gameCode}/reveal?role=player&keyword=${encodedKeyword}`);
+          } else {
+            console.warn('[WARN] 역할이 비정상적이거나 keyword 없음', data);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('✅ Supabase subscribe 상태:', status);
+      });
+
+    return () => {
+      console.log('🧹 구독 제거');
+      supabase.removeChannel(channel);
+    };
+  }, [userId, gameId]);
+
+  console.log('[DEBUG] 전체 participants', participants);
+
+  // 방장만 - 시작 버튼
+  const handleStart = async () => {
+    if (participants.length < 4) return;
+
+    const currentUser = participants.find(p => p.user_id === userId);
+    if (!currentUser?.isHost) {
+      alert('방장만 게임을 시작할 수 있습니다.');
+      return;
+    }
+
+    // 라이어 선택
+    const { data, error } = await supabase
+      .from('game_participants')
+      .select(`
+        id,
+        user_id,
+        is_host,
+        role,
+        joined_at,
+        users:user_id(user_nickname)
+      `)
+      .eq('game_id', gameId);
+
+    if (error || !data || data.length !== 4) {
+      console.error('참가자 정보 조회 실패:', error);
+      return;
+    }
+
+    const latestParticipants = data as Array<{
+      id: number;
+      user_id: number;
+      is_host: boolean;
+      role: string;
+      joined_at: string;
+      users: { user_nickname: string }[];
+    }>;
+
+    const existingLiar = latestParticipants.find(p => p.role === 'liar');
+    if (existingLiar) {
+      console.log('이미 라이어가 설정되어 있음:', existingLiar);
+
+      // 게임 상태가 이미 started이면 그냥 라우팅만
+      const { data: gameData } = await supabase
+        .from('games')
+        .select('status')
+        .eq('id', gameId)
+        .single();
+      
+      if (gameData?.status === 'started') {
+        const res = await fetch('/api/role', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, gameCode }),
+        });
+
+        const { role } = await res.json();
+
+        const url = role === 'liar'
+          ? `/game/${gameCode}/reveal?role=liar`
+          : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
+
+        router.push(url);
+        return;
+      }
+    } else {
+      const randomIndex = Math.floor(Math.random() * latestParticipants.length);
+      const selected = latestParticipants[randomIndex];
+
+      await fetch('/api/games/select-liar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          gameId,
+          liarUserId: selected.user_id
+        })
+      });
+    }
+
+    // 게임 상태 업데이트
+    await supabase
+      .from('games')
+      .update({ status: 'started' })
+      .eq('id', gameId);
+
+    // 방장도 역할 받아와서 reveal 페이지로 이동
+    const res = await fetch('/api/role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, gameCode }),
+    });
+
+    const { role } = await res.json();
+
+    if (!role || !['liar', 'player'].includes(role)) {
+      alert('역할 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    const url = role === 'liar'
+      ? `/game/${gameCode}/reveal?role=liar`
+      : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
+
+    router.push(url);
+
+    if (onClose) onClose();
+  };
+
+  const isDisabled = participants.length < 4;
 
   return (
     <ModalOverlay>
@@ -158,7 +340,6 @@ const StartButton = styled.button<{ disabled?: boolean }>`
   background: ${({ disabled }) =>
     disabled
       ? '#555'
-      // : 'linear-gradient(135deg, #00d09c, #4ee7c2)'};
       : 'linear-gradient(135deg, #21D35D, rgb(23, 202, 83))'};
   color: ${({ disabled }) => (disabled ? '#999' : 'black')};
   padding: 14px 24px;
@@ -174,7 +355,6 @@ const StartButton = styled.button<{ disabled?: boolean }>`
     background: ${({ disabled }) =>
       disabled
         ? '#555'
-        // : 'linear-gradient(135deg, #00b88a, #3cc3a5)'};
         : 'linear-gradient(135deg, #21D35D, rgb(23, 202, 83))'};
   }
 `
