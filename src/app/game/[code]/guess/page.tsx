@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { useParams, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 import FinalResultModal from "@/components/FinalResultModal";
 
 const GuessPage = () => {
@@ -20,6 +21,7 @@ const GuessPage = () => {
     const [showResult, setShowResult] = useState(false);
     const [isLiarWin, setIsLiarWin] = useState(false);
 
+    // 1. liar만 keyword GET
     useEffect(() => {
         const fetchKeyword = async () => {
             const res = await fetch(`/api/keyword?gameCode=${gameCode}`);
@@ -30,20 +32,58 @@ const GuessPage = () => {
         if (isLiar) fetchKeyword();
     }, [gameCode, isLiar]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    // 2. liar가 제시어를 제출하면 API 호출로 결과 저장
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
         const trimmedGuess = guess.trim();
         const trimmedAnswer = answer.trim();
+        const liarSucceeded = trimmedGuess !== '' && trimmedGuess === trimmedAnswer;
 
-        setIsLiarWin(trimmedGuess !== '' && trimmedGuess === trimmedAnswer);
+        setIsLiarWin(liarSucceeded);
         setShowResult(true);
+        
+        await fetch('/api/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                gameCode,
+                isLiarWin: liarSucceeded
+            })
+        });
     };
 
+    // 3. player는 Supabase로 실시간 결과 구독
+    useEffect(() => {
+        if (!isPlayer) return;
+
+        const channel = supabase
+            .channel(`game_end_${gameCode}`)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'games',
+                filter: `game_code=eq.${gameCode}`,
+            }, async (payload) => {
+                const res = await fetch(`/api/status?gameCode=${gameCode}`);
+                const { isLiarWin } = await res.json();
+
+                setIsLiarWin(isLiarWin);
+                setShowResult(true);
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [isPlayer, gameCode]);
+
+    // 예외 처리
     if (!isLiar && !isPlayer) {
         return (
-        <Overlay>
-            <Message>잘못된 접근입니다.</Message>
-        </Overlay>
+            <Overlay>
+                <Message>잘못된 접근입니다.</Message>
+            </Overlay>
         );
     }
 
@@ -59,7 +99,7 @@ const GuessPage = () => {
                             type="text"
                             value={guess}
                             onChange={e => setGuess(e.target.value)}
-                            placeholder="제시어 입력"
+                            placeholder="제시어를 입력하세요."
                             maxLength={20}
                         />
                         <StyledButton type="submit" disabled={!guess.trim()}>
@@ -68,20 +108,24 @@ const GuessPage = () => {
                     </Form>
                 </ModalCard>
 
-                {showResult && (
-                    <FinalResultModal isLiarWin={isLiarWin} />
-                )}
+                {showResult && <FinalResultModal isLiarWin={isLiarWin} />}
             </CenterWrapper>
         );
     }
 
     // player : 대기 화면
-    return (
-        <Overlay>
-            <Spinner />
-            <Message>라이어가 제시어를 추측하는 중입니다 ...</Message>
-        </Overlay>
-    );
+    if (isPlayer) {
+        return showResult ? (
+            <CenterWrapper>
+                <FinalResultModal isLiarWin={isLiarWin} />
+            </CenterWrapper>
+        ) : (
+            <Overlay>
+                <Spinner />
+                <Message>라이어가 제시어를 추측하는 중입니다 ...</Message>
+            </Overlay>
+        );
+    }
 };
 
 export default GuessPage;
