@@ -75,12 +75,18 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
             body: JSON.stringify({ userId, gameCode }),
           });
 
-          if (!res.ok) {
-            console.error('❌ 역할 API 요청 실패', await res.text());
-            return;
+          const data = await res.json();
+
+          if (res.ok && data.role) {
+            const stored = localStorage.getItem('userInfo');
+            const parsed = stored ? JSON.parse(stored) : {};
+
+            localStorage.setItem('userInfo', JSON.stringify({
+              ...parsed,
+              role: data.role,
+            }));
           }
 
-          const data = await res.json();
           console.log('[DEBUG] /api/role 응답:', data);
 
           if (data.role === 'liar') {
