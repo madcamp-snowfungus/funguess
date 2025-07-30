@@ -15,6 +15,7 @@ export default function GamePage() {
   const [gameId, setGameId] = useState<number | null>(null)
   const [gameCode, setGameCode] = useState('')
   const [isLiarSelected, setIsLiarSelected] = useState(false) // 라이어 선택 플래그
+  const [keyword, setKeyword] = useState('');
   
   const router = useRouter()
 
@@ -149,6 +150,8 @@ export default function GamePage() {
         return
       }
 
+      setKeyword(game.keyword)
+
       // 이미 참가자인지 확인
       const { data: existingParticipant } = await supabase
         .from('game_participants')
@@ -233,6 +236,7 @@ export default function GamePage() {
         <WaitingModal
           gameCode={gameCode}
           participants={participants}
+          keyword={keyword}
           onClose={() => setIsWaiting(false)}
         />
       )}

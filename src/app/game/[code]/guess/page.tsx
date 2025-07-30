@@ -49,10 +49,7 @@ const GuessPage = () => {
                 </ModalCard>
 
                 {showResult && (
-                    <FinalResultModal
-                        isLiarWin={isLiarWin}
-                        onClose={() => setShowResult(false)}
-                    />
+                    <FinalResultModal isLiarWin={isLiarWin} />
                 )}
             </CenterWrapper>
         );
