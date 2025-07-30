@@ -83,8 +83,11 @@ export default function GamePlayPage() {
       {showAILoading && <AILoadingOverlay speakerName={speakingUser} />}
       {showAIResult && (
         <AIResultModal
-          liarName="서경"
-          word="카메라"
+          speakerName="서경"
+          blinkCount={5}
+          expression="불안한 표정"
+          vagueness="모호한 단어"
+          liarProbability={72}
           onClose={() => setShowAIResult(false)}
         />
       )}
