@@ -360,8 +360,8 @@ export default function GamePlayPage() {
       setTimeout(() => {
         setShowAILoading(false);
         setTimeout(() => setShowAIResult(true), 2000);
-      }, 1500);
-      setTimeout(() => setShowAIResult(false), 4500);
+      }, 2000);
+      setTimeout(() => setShowAIResult(false), 5000);
     }
   
     if (gameSocketRef.current?.readyState === 1) {
@@ -459,8 +459,8 @@ export default function GamePlayPage() {
               setTimeout(() => {
                 setShowAILoading(false);
                 setTimeout(() => setShowAIResult(true), 2000);
-              }, 1500);
-              setTimeout(() => setShowAIResult(false), 4500);
+              }, 2500);
+              setTimeout(() => setShowAIResult(false), 6500);
             }
           }
           // 분석 데이터가 포함된 turnEnd 메시지 처리
