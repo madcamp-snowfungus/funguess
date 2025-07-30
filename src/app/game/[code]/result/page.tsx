@@ -7,41 +7,82 @@ import VoteResultModal from '../../../../components/VoteResultModal';
 import FinalResultModal from '@/components/FinalResultModal';
 import { useRouter, useParams } from 'next/navigation';
 
-const players = [
-    { name: '백서경', color: '#A8E5FF', votes: 1, emoji: '🍄' },
-    { name: '하예영', color: '#FFF2AA', votes: 1, emoji: '🍄' },
-    { name: '이연재', color: '#B5FFC3', votes: 0, emoji: '🍄' },
-    { name: '백목이', color: '#F1CCFE', votes: 2, emoji: '🍄' },
-];
+interface Player {
+    userId: number;
+    nickname: string;
+    turnOrder: number;
+    votes: number;
+    role: string;
+    color: string;
+    emoji: string;
+}
 
-const isLiarWin = true; // true: 시민들의 추리 실패, false: 시민들의 추리 성공
-const liarNickname = '백목이'; // 라이어의 닉네임
+const cardColors = ['#F26DAC', '#21D35D', '#4791FE', '#EDE42F'];
 
 const ResultPage = () => {
     const router = useRouter();
     const params = useParams();
     const code = params.code as string;
+
+    const [players, setPlayers] = useState<Player[]>([]);
+    const [isLiarWin, setIsLiarWin] = useState(false);
+    const [liarNickname, setLiarNickname] = useState('');
     const [showVoteResult, setShowVoteResult] = useState(false);
     const [showFinalResult, setShowFinalResult] = useState(false);
 
-    // 3초 후 FinalResultModal 표시
     useEffect(() => {
+        const fetchVoteResult = async () => {
+            try {
+                const res = await fetch('/api/vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ gameCode: code }),
+                });
+
+                const result = await res.json();
+
+                if (!res.ok) {
+                    console.error(result.error || '투표 결과 불러오기 실패');
+                    return;
+                }
+
+                const processedPlayers: Player[] = result.players.map((p: any) => ({
+                    userId: p.userId,
+                    nickname: p.nickname,
+                    turnOrder: p.turnOrder,
+                    votes: p.votes,
+                    role: p.role,
+                    color: cardColors[p.turnOrder % cardColors.length],
+                    emoji: '🍄',
+                }));
+
+                setPlayers(processedPlayers);
+                setLiarNickname(result.liarNickname);
+                setIsLiarWin(result.isLiarWin);
+            } catch (e) {
+                console.error('투표 결과 불러오기 중 에러:', e);
+            }
+        };
+
+        fetchVoteResult();
+
         const timer = setTimeout(() => {
             setShowVoteResult(true);
         }, 3000);
 
         return () => clearTimeout(timer);
-    }, []);
+    }, [code]);
 
     const handleNext = () => {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
+        const role = userInfo.role || 'player';
+
         if (isLiarWin) {
             // 시민 추측 실패 → 바로 최종 결과 모달 표시
             setShowVoteResult(false);
             setShowFinalResult(true);
         } else {
-            // 시민 추측 성공 → 기존처럼 role에 따라 guess 페이지로 이동
-            const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}');
-            const role = userInfo.role || 'player';
+            // 시민 추측 성공 → role에 따라 guess 페이지로 이동
             router.push(`/game/${code}/guess?role=${role}`);
         }
     };
@@ -54,9 +95,9 @@ const ResultPage = () => {
                     {players.map((p, i) => (
                         <PlayerWrapper key={i}>
                             <PlayerCard $bg={p.color} />
-                            <PlayerName>{p.name}</PlayerName>
+                            <PlayerName>{p.nickname}</PlayerName>
                             {p.votes > 0 && (
-                                <VoteIcons>{Array(p.votes).fill(p.emoji || '🍄').join(' ')}</VoteIcons>
+                                <VoteIcons>{Array(p.votes).fill(p.emoji).join(' ')}</VoteIcons>
                             )}
                         </PlayerWrapper>
                     ))}
