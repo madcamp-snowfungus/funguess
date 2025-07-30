@@ -32,14 +32,19 @@ export default function GamePlayPage() {
   const [participants, setParticipants] = useState<any[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
 
-  // Turn state
-  const [currentTurn, setCurrentTurn] = useState(0); // 0~7
+  // Turn state - WebSocket으로 동기화
+  const [currentTurn, setCurrentTurn] = useState(0);
   const [turnTimer, setTurnTimer] = useState(15);
   const [turnInProgress, setTurnInProgress] = useState(true);
   const [showAILoading, setShowAILoading] = useState(false);
   const [showAIResult, setShowAIResult] = useState(false);
   const [message, setMessage] = useState('');
-  const [turnsCount, setTurnsCount] = useState(0); // for progress
+  const [turnsCount, setTurnsCount] = useState(0);
+  
+  // WebSocket refs
+  const gameSocketRef = useRef<WebSocket | null>(null);
+  const sttSocketRef = useRef<WebSocket | null>(null);
+  
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [blinkCount, setBlinkCount] = useState(0);
   const faceMeshRef = useRef<any>(null);
@@ -48,13 +53,30 @@ export default function GamePlayPage() {
   const [cameraReady, setCameraReady] = useState(false);
   const [lastEAR, setLastEAR] = useState(0);
   const [blinkActive, setBlinkActive] = useState(false);
-  const lastBlinkTimeRef = useRef<number>(0); // 추가: debounce용
+  const lastBlinkTimeRef = useRef<number>(0);
 
   const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
   const [modalVoiceAnalysis, setModalVoiceAnalysis] = useState<string | null>(null);
+  // 최신 값 보존용 ref
+  const messageRef = useRef(message);
+  const blinkCountRef = useRef(blinkCount);
+  const voiceAnalysisResultRef = useRef<string | null>(null);
+  // WebSocket으로 받은 분석 데이터 저장용 state
+  const [receivedAnalysisData, setReceivedAnalysisData] = useState<{
+    blinkCount: number;
+    voiceAnalysis: string;
+    transcript: string;
+  } | null>(null);
+
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
+
+  useEffect(() => {
+    blinkCountRef.current = blinkCount;
+  }, [blinkCount]);
 
   // STT 관련
-  const socketRef = useRef<WebSocket | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const processorRef = useRef<ScriptProcessorNode | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -70,6 +92,7 @@ export default function GamePlayPage() {
       console.error('참가자 목록 불러오기 실패:', error);
       return [];
     }
+    console.log('참가자 목록:', data);
     return data;
   }
 
@@ -89,6 +112,17 @@ export default function GamePlayPage() {
   const speakingUser = participants[speakingIdx]?.users?.user_nickname || '';
   const speakingUserId = participants[speakingIdx]?.user_id?.toString();
   const isMyTurn = myUserId && speakingUserId === myUserId;
+
+  // 현재 발언자 정보 로그
+  useEffect(() => {
+    console.log('현재 턴:', currentTurn);
+    console.log('참가자 수:', participants.length);
+    console.log('발언자 인덱스:', speakingIdx);
+    console.log('발언자:', speakingUser);
+    console.log('발언자 ID:', speakingUserId);
+    console.log('내 턴인가:', isMyTurn);
+    console.log('내 ID:', myUserId);
+  }, [currentTurn, participants, speakingIdx, speakingUser, speakingUserId, isMyTurn, myUserId]);
 
   // useRef 동기화는 isMyTurn 선언 이후에 위치해야 함
   const isMyTurnRef = useRef(false);
@@ -110,62 +144,404 @@ export default function GamePlayPage() {
     }
   }, []);
 
-  // 마이크 오디오 → WebSocket 전송
-  // 모든 참가자: WebSocket 열고 STT 메시지 수신
-  // 발언자만: 마이크를 STT 서버로 전송
-  useEffect(() => {
-    const socket = new WebSocket('ws://localhost:8080') // ✅ 모두 연결
-    socketRef.current = socket
+  // 턴 종료 핸들러
+  // const handleTurnEnd = async (turnNumber: number, capturedMessage?: string, capturedBlinkCount?: number) => {
+  //   // 이미 턴이 종료된 상태면 중복 실행 방지
+  //   if (!turnInProgress) return;
+    
+  //   setTurnInProgress(false);
+  //   let voiceAnalysisResult = null;
+    
+  //   // 캡처된 데이터 사용, 없으면 현재 상태 사용
+  //   const finalMessage = capturedMessage || message;
+  //   const finalBlinkCount = capturedBlinkCount || blinkCount;
+    
+  //   console.log('handleTurnEnd', finalMessage, keyword);
+  //   console.log('Current turn for DB:', turnNumber);
+  //   console.log('📊 Current data:', {
+  //     message: finalMessage,
+  //     messageLength: finalMessage?.length,
+  //     blinkCount: finalBlinkCount,
+  //     keyword: keyword
+  //   });
+    
+  //   // 현재 턴 번호로 발언자 계산
+  //   const speakerIdx = turnNumber % participants.length;
+  //   const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
+  //   const isCurrentSpeaker = myUserId && currentSpeakerUserId === myUserId;
+    
+  //   console.log(`🎤 Turn ${turnNumber}: Speaker index=${speakerIdx}, Speaker ID=${currentSpeakerUserId}, Is my turn=${isCurrentSpeaker}`);
+    
+  //   // 발언자인 경우에만 Gemini 분석 수행 (transcript가 있을 때만)
+  //   if (gameId && currentSpeakerUserId && isCurrentSpeaker && finalMessage.trim() && keyword) {
+  //     console.log('🔍 Starting Gemini analysis...');
+  //     console.log('📝 Analysis data:', {
+  //       transcript: finalMessage,
+  //       keyword: keyword,
+  //       blinkCount: finalBlinkCount
+  //     });
+      
+  //     try {
+  //       const res = await fetch('/api/gemini-analyze', {
+  //         method: 'POST',
+  //         headers: { 'Content-Type': 'application/json' },
+  //         body: JSON.stringify({ transcript: finalMessage, keyword }),
+  //       });
+        
+  //       console.log('📡 Gemini API response status:', res.status);
+        
+  //       const data = await res.json();
+  //       console.log('📊 Gemini API response:', data);
+        
+  //       voiceAnalysisResult = data.analysis || null;
+  //       console.log('✅ Gemini analysis result:', voiceAnalysisResult);
+  //     } catch (e) {
+  //       console.error('❌ Gemini 분석 실패:', e);
+  //       voiceAnalysisResult = null;
+  //     }
+  //   } else if (gameId && currentSpeakerUserId && isCurrentSpeaker && !finalMessage.trim()) {
+  //     console.log('🚫 transcript가 비어있어서 Gemini 분석 건너뜀');
+  //     voiceAnalysisResult = '발언 내용이 없습니다';
+  //   } else if (gameId && currentSpeakerUserId && isCurrentSpeaker && !keyword) {
+  //     console.log('🚫 keyword가 로드되지 않아서 Gemini 분석 건너뜀');
+  //     voiceAnalysisResult = '키워드 정보 없음';
+  //   } else {
+  //     console.log('🚫 Gemini 분석 조건 불만족:', {
+  //       gameId: !!gameId,
+  //       currentSpeakerUserId: !!currentSpeakerUserId,
+  //       isCurrentSpeaker,
+  //       hasMessage: !!finalMessage.trim(),
+  //       hasKeyword: !!keyword
+  //     });
+  //   }
+    
+  //   // DB 저장 (발언자만 저장)
+  //   if (gameId && currentSpeakerUserId && isCurrentSpeaker) {
+  //     try {
+  //       console.log(`💾 Saving to DB: turn_number=${turnNumber}, user_id=${currentSpeakerUserId}`);
+  //       console.log(`📝 Data to save:`, {
+  //         game_id: gameId,
+  //         turn_number: turnNumber,
+  //         turn_user_id: currentSpeakerUserId,
+  //         transcript: finalMessage,
+  //         face_analysis_data: { blinkCount: finalBlinkCount },
+  //         voice_analysis_data: { analysis: voiceAnalysisResult },
+  //         finished_at: new Date().toISOString(),
+  //       });
+        
+  //       const { error } = await supabase.from('turns').insert({
+  //         game_id: gameId,
+  //         turn_number: turnNumber,
+  //         turn_user_id: currentSpeakerUserId,
+  //         transcript: finalMessage,
+  //         face_analysis_data: { blinkCount: finalBlinkCount },
+  //         voice_analysis_data: { analysis: voiceAnalysisResult },
+  //         finished_at: new Date().toISOString(),
+  //       });
+        
+  //       if (error) {
+  //         console.error('DB 저장 실패:', error);
+  //       } else {
+  //         console.log('DB 저장 성공');
+  //         setBlinkCount(0);
+  //         setLastEAR(0);
+  //         setBlinkActive(false);
+  //         lastBlinkTimeRef.current = 0;
+  //         setMessage('');
+  //       }
+  //     } catch (e) {
+  //       console.error('DB 저장 중 오류:', e);
+  //     }
+  //   } else {
+  //     console.log('❌ DB 저장 조건 불만족:', {
+  //       gameId,
+  //       currentSpeakerUserId,
+  //       isCurrentSpeaker,
+  //       isMyTurn,
+  //       myUserId
+  //     });
+  //   }
+    
+  //   setTurnsCount((prev) => prev + 1);
+    
+  //   // AI 분석 모달: 발언자 제외 모두에게 표시
+  //   if (!isCurrentSpeaker) {
+  //     setShowAILoading(true);
+  //     setTimeout(() => {
+  //       setShowAILoading(false);
+  //       setTimeout(() => setShowAIResult(true), 2000);
+  //     }, 1500);
+  //     setTimeout(() => setShowAIResult(false), 4500);
+  //   }
+    
+  //   // WebSocket으로 분석 결과 전송 (모든 클라이언트가 받음)
+  //   if (gameSocketRef.current?.readyState === 1) {
+  //     gameSocketRef.current.send(JSON.stringify({
+  //       type: 'turnEnd',
+  //       roomId: gameCode,
+  //       analysisData: {
+  //         blinkCount: finalBlinkCount,
+  //         voiceAnalysis: voiceAnalysisResult,
+  //         transcript: finalMessage
+  //       }
+  //     }));
+  //   }
+  // };
 
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'stt') {
-        setMessage(data.text) // ✅ 모든 참가자가 메시지 받음
+  const handleTurnEnd = async (turnNumber: number) => {
+    if (!turnInProgress) return;
+    setTurnInProgress(false);
+  
+    const finalMessage = messageRef.current;
+    const finalBlinkCount = blinkCountRef.current;
+  
+    console.log('📊 handleTurnEnd() 실행');
+    console.log('→ message:', finalMessage);
+    console.log('→ blinkCount:', finalBlinkCount);
+  
+    let voiceAnalysisResult = null;
+  
+    const speakerIdx = turnNumber % participants.length;
+    const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
+    const isCurrentSpeaker = myUserId && currentSpeakerUserId === myUserId;
+
+    console.log('gameId', gameId);
+    console.log('currentSpeakerUserId', currentSpeakerUserId);
+    console.log('isCurrentSpeaker', isCurrentSpeaker);
+    console.log('finalMessage', finalMessage);
+    console.log('keyword', keyword);
+
+    const actualKeyword = keyword ?? localStorage.getItem('gameKeyword');
+
+    if (gameId && currentSpeakerUserId && isCurrentSpeaker && finalMessage.trim() && actualKeyword) {
+      try {
+        const res = await fetch('/api/gemini-analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: finalMessage, keyword: actualKeyword }),
+        });
+  
+        const data = await res.json();
+        voiceAnalysisResult = data.analysis || null;
+        voiceAnalysisResultRef.current = voiceAnalysisResult;
+      } catch (e) {
+        console.error('Gemini 분석 실패:', e);
+        voiceAnalysisResult = null;
       }
     }
+  
+    if (gameId && currentSpeakerUserId && isCurrentSpeaker) {
+      try {
+        const { error } = await supabase.from('turns').insert({
+          game_id: gameId,
+          turn_number: turnNumber,
+          turn_user_id: currentSpeakerUserId,
+          transcript: finalMessage,
+          face_analysis_data: { blinkCount: finalBlinkCount },
+          voice_analysis_data: { analysis: voiceAnalysisResult },
+          finished_at: new Date().toISOString(),
+        });
+  
+        if (error) console.error('DB 저장 실패:', error);
+        else console.log('DB 저장 성공');
+      } catch (e) {
+        console.error('DB 저장 오류:', e);
+      }
+    }
+  
+    setTurnsCount((prev) => prev + 1);
+  
+    if (!isCurrentSpeaker) {
+      // 모달 데이터 즉시 설정
+      setModalBlinkCount(finalBlinkCount);
+      setModalVoiceAnalysis(voiceAnalysisResult || finalMessage || '발언 내용이 없습니다');
+      
+      setShowAILoading(true);
+      setTimeout(() => {
+        setShowAILoading(false);
+        setTimeout(() => setShowAIResult(true), 2000);
+      }, 2000);
+      setTimeout(() => setShowAIResult(false), 5000);
+    }
+  
+    if (gameSocketRef.current?.readyState === 1) {
+      gameSocketRef.current.send(JSON.stringify({
+        type: 'turnEnd',
+        roomId: gameCode,
+        analysisData: {
+          blinkCount: finalBlinkCount,
+          voiceAnalysis: voiceAnalysisResult,
+          transcript: finalMessage,
+        },
+      }));
+    }
+  
+    // 상태 초기화
+    setBlinkCount(0);
+    setLastEAR(0);
+    setBlinkActive(false);
+    lastBlinkTimeRef.current = 0;
+    setMessage('');
+  };
+  
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value)
+  }
+
+  // 게임 WebSocket 연결 및 동기화
+  useEffect(() => {
+    if (!gameId || !participants.length) return;
+
+    const gameSocket = new WebSocket('ws://localhost:8081');
+    gameSocketRef.current = gameSocket;
+
+    gameSocket.onopen = () => {
+      console.log('🎮 Game WebSocket connected');
+      // 게임 참가
+      gameSocket.send(JSON.stringify({
+        type: 'join',
+        roomId: gameCode,
+        totalTurns: 8, // 고정 8턴
+        gameId: gameId
+      }));
+    };
+
+    gameSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      switch (data.type) {
+        case 'gameStart':
+          console.log('🟢 게임 시작 메시지 수신');
+          router.push(`/game/${gameCode}/play`);
+          break;
+        case 'turn':
+          console.log(`📡 Received turn ${data.turn} from server`);
+          setCurrentTurn(data.turn);
+          // setMessage('');
+          setTurnInProgress(false); // 턴 시작 시 비활성화
+          break;
+        case 'timer':
+          setTurnTimer(data.timer);
+          setTurnInProgress(true); // 타이머 시작과 함께 턴 활성화
+          break;
+        case 'gameEnd':
+          // 게임 종료 시 투표 페이지로 이동
+          router.push(`/game/${gameCode}/vote`);
+          break;
+        case 'turnEnd':
+          // 타이머 만료로 인한 턴 종료인 경우
+          if (data.timerExpired) {
+            console.log(`⏰ Timer expired, calling handleTurnEnd for turn ${data.turn}`);
+            
+            // 현재 턴 번호로 발언자 계산
+            const speakerIdx = data.turn % participants.length;
+            const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
+            const isCurrentSpeaker = myUserId && currentSpeakerUserId === myUserId;
+            
+            console.log(`🎤 Turn ${data.turn}: Speaker ID=${currentSpeakerUserId}, Is my turn=${isCurrentSpeaker}`);
+            
+            // 발언자인 경우에만 handleTurnEnd 호출
+            if (isCurrentSpeaker) {
+              // 현재 데이터를 캡처해서 전달
+              const currentMessage = message;
+              const currentBlinkCount = blinkCount;
+              console.log(`📸 Capturing current data: message="${currentMessage}", blinkCount=${currentBlinkCount}`);
+              handleTurnEnd(data.turn);
+            } else {
+              console.log('👥 Not my turn, showing AI modal with current data');
+              // 비발언자에게 AI 분석 모달 표시 (현재 클라이언트의 데이터 사용)
+              // 모달 데이터 즉시 설정
+              setModalBlinkCount(blinkCount);
+              setModalVoiceAnalysis(message || '발언 내용이 없습니다');
+              
+              setShowAILoading(true);
+              setTimeout(() => {
+                setShowAILoading(false);
+                setTimeout(() => setShowAIResult(true), 2000);
+              }, 2500);
+              setTimeout(() => setShowAIResult(false), 6500);
+            }
+          }
+          // 분석 데이터가 포함된 turnEnd 메시지 처리
+          if (data.analysisData) {
+            console.log('📊 Received analysis data:', data.analysisData);
+            setReceivedAnalysisData(data.analysisData);
+            // 모달 데이터 즉시 설정
+            setModalBlinkCount(data.analysisData.blinkCount);
+            setModalVoiceAnalysis(data.analysisData.voiceAnalysis || data.analysisData.transcript || '발언 내용이 없습니다');
+          }
+          break;
+      }
+    };
+
+    gameSocket.onerror = (error) => {
+      console.error('Game WebSocket error:', error);
+    };
+
+    gameSocket.onclose = () => {
+      console.log('Game WebSocket disconnected');
+    };
+
+    return () => {
+      gameSocket.close();
+    };
+  }, [gameId, participants.length, gameCode]);
+
+  // STT WebSocket 연결
+  useEffect(() => {
+    const sttSocket = new WebSocket('ws://localhost:8080');
+    sttSocketRef.current = sttSocket;
+
+    sttSocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'stt') {
+        console.log('🎤 STT received:', data.text);
+        setMessage(data.text);
+      }
+    };
 
     const startMic = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      streamRef.current = stream
-      const audioContext = new AudioContext({ sampleRate: 16000 })
-      audioContextRef.current = audioContext
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const audioContext = new AudioContext({ sampleRate: 16000 });
+      audioContextRef.current = audioContext;
 
-      const source = audioContext.createMediaStreamSource(stream)
-      const processor = audioContext.createScriptProcessor(4096, 1, 1)
-      processorRef.current = processor
+      const source = audioContext.createMediaStreamSource(stream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
 
-      source.connect(processor)
-      processor.connect(audioContext.destination)
+      source.connect(processor);
+      processor.connect(audioContext.destination);
 
       processor.onaudioprocess = (e) => {
-        const input = e.inputBuffer.getChannelData(0)
-        const int16 = float32ToInt16(input)
-        if (socket.readyState === 1) socket.send(int16)
-      }
-    }
+        const input = e.inputBuffer.getChannelData(0);
+        const int16 = float32ToInt16(input);
+        if (sttSocket.readyState === 1) sttSocket.send(int16);
+      };
+    };
 
     // 조건: 발언자인 경우만 마이크 시작
     if (isMyTurn && turnInProgress) {
-      startMic()
+      startMic();
     }
 
     return () => {
-      processorRef.current?.disconnect()
+      processorRef.current?.disconnect();
       if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
       }
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      socket.close()
-    }
-  }, [isMyTurn, turnInProgress])
-
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      sttSocket.close();
+    };
+  }, [isMyTurn, turnInProgress]);
 
   function float32ToInt16(buffer: Float32Array): Blob {
-    const int16 = new Int16Array(buffer.length)
+    const int16 = new Int16Array(buffer.length);
     for (let i = 0; i < buffer.length; i++) {
-      int16[i] = Math.max(-1, Math.min(1, buffer[i])) * 32767
+      int16[i] = Math.max(-1, Math.min(1, buffer[i])) * 32767;
     }
-    return new Blob([int16], { type: 'application/octet-stream' })
+    return new Blob([int16], { type: 'application/octet-stream' });
   }
 
   useEffect(() => {
@@ -185,8 +561,15 @@ export default function GamePlayPage() {
         .eq('id', gameId)
         .single();
       if (data) setKeyword(data.keyword);
+
+      if (data?.keyword) {
+      setKeyword(data.keyword);
+      localStorage.setItem('gameKeyword', data.keyword); // ✅ 저장
+    }
     };
     fetchKeyword();
+
+    
   }, [gameId]);
 
   // Mediapipe FaceMesh CDN 동적 로드
@@ -276,7 +659,11 @@ export default function GamePlayPage() {
       const now = Date.now();
       if (ear < BLINK_THRESHOLD && !blinkActiveRef.current) {
         if (now - lastBlinkTimeRef.current > BLINK_DEBOUNCE_MS) {
-          setBlinkCount(prev => prev + 1);
+          setBlinkCount(prev => {
+            const newCount = prev + 1;
+            console.log(`👁️ Blink detected! EAR: ${ear.toFixed(3)}, Count: ${newCount}`);
+            return newCount;
+          });
           lastBlinkTimeRef.current = now;
         }
         setBlinkActive(true);
@@ -305,112 +692,39 @@ export default function GamePlayPage() {
   }, [faceMeshReady, cameraReady]);
 
   // 턴이 바뀔 때마다 blinkCount 등만 초기화
-  useEffect(() => {
-    if (isMyTurn) {
-      setBlinkCount(0);
-      setLastEAR(0);
-      setBlinkActive(false);
-      lastBlinkTimeRef.current = 0;
-    }
-  }, [isMyTurn, currentTurn]);
+  // useEffect(() => {
+  //   if (isMyTurn) {
+  //     setBlinkCount(0);
+  //     setLastEAR(0);
+  //     setBlinkActive(false);
+  //     lastBlinkTimeRef.current = 0;
+  //   }
+  // }, [isMyTurn, currentTurn]);
 
-  // 턴 타이머
+  // AIResultModal이 열릴 때, WebSocket으로 받은 분석 데이터 또는 현재 클라이언트의 데이터 사용
   useEffect(() => {
-    if (!turnInProgress) return;
-    if (turnTimer === 0) {
-      handleTurnEnd();
-      return;
-    }
-    const timer = setInterval(() => {
-      setTurnTimer((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [turnInProgress, turnTimer]);
-
-  // 턴 종료 핸들러
-  const handleTurnEnd = async () => {
-    setTurnInProgress(false);
-    let voiceAnalysisResult = null;
-    if (gameId && speakingUserId && isMyTurn) {
-      // Gemini 분석 API 호출 (keyword 포함)
-      try {
-        const res = await fetch('/api/gemini-analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: message, keyword }),
-        });
-        const data = await res.json();
-        voiceAnalysisResult = data.analysis || null;
-      } catch (e) {
-        voiceAnalysisResult = null;
-      }
-      // 2. DB 저장
-      await supabase.from('turns').insert({
-        game_id: gameId,
-        turn_number: currentTurn,
-        turn_user_id: speakingUserId,
-        transcript: message,
-        face_analysis_data: { blinkCount },
-        voice_analysis_data: { analysis: voiceAnalysisResult },
-        finished_at: new Date().toISOString(),
+    if (!showAIResult) return;
+    
+    console.log('🔍 Modal data setup - showAIResult:', showAIResult);
+    console.log('🔍 receivedAnalysisData:', receivedAnalysisData);
+    console.log('🔍 blinkCountRef.current:', blinkCountRef.current);
+    console.log('🔍 voiceAnalysisResultRef.current:', voiceAnalysisResultRef.current);
+    console.log('🔍 messageRef.current:', messageRef.current);
+    
+    if (receivedAnalysisData) {
+      console.log('🔍 Using received analysis data:', receivedAnalysisData);
+      setModalBlinkCount(receivedAnalysisData.blinkCount);
+      setModalVoiceAnalysis(receivedAnalysisData.voiceAnalysis || receivedAnalysisData.transcript || '발언 내용이 없습니다');
+    } else {
+      console.log('🔍 Using local data:', {
+        blinkCount: blinkCountRef.current,
+        voiceAnalysis: voiceAnalysisResultRef.current,
+        message: messageRef.current
       });
+      setModalBlinkCount(blinkCountRef.current);
+      setModalVoiceAnalysis(voiceAnalysisResultRef.current || messageRef.current || '발언 내용이 없습니다');
     }
-    setTurnsCount((prev) => prev + 1);
-    // AI 분석 모달: 발언자 제외 모두에게 표시
-    if (!isMyTurn) {
-      setShowAILoading(true);
-      setTimeout(() => {
-        setShowAILoading(false);
-        setTimeout(() => setShowAIResult(true), 2000); // 1초 딜레이 후 모달 표시
-      }, 1500);
-      setTimeout(() => setShowAIResult(false), 4500); // 모달 닫는 시간도 1초 늘림
-    }
-    // 다음 턴으로 이동 or 투표로 이동
-    setTimeout(() => {
-      if (currentTurn + 1 >= participants.length * 2) {
-        // 8턴 끝나면 투표로 이동
-        router.push(`/game/${gameCode}/vote`);
-      } else {
-        setCurrentTurn((prev) => prev + 1);
-        setTurnTimer(15);
-        setTurnInProgress(true);
-        setMessage('');
-      }
-    }, 4000);
-  };
-
-  // 발언 종료 버튼
-  const handleEndSpeech = () => {
-    if (isMyTurn && turnInProgress) handleTurnEnd();
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessage(e.target.value)
-  }
-
-  // AIResultModal이 열릴 때, turns 테이블에서 최신 턴의 blinkCount와 voice_analysis_data를 fetch
-  useEffect(() => {
-    if (!showAIResult || !gameId || !speakingUserId) return;
-    // 가장 최근 턴의 face_analysis_data.blinkCount, voice_analysis_data를 가져온다
-    const fetchAnalysisData = async () => {
-      const { data, error } = await supabase
-        .from('turns')
-        .select('face_analysis_data, voice_analysis_data')
-        .eq('game_id', gameId)
-        .eq('turn_user_id', speakingUserId)
-        .eq('turn_number', currentTurn)
-        .order('finished_at', { ascending: false })
-        .limit(1);
-      if (data && data.length > 0) {
-        setModalBlinkCount(data[0].face_analysis_data?.blinkCount ?? null);
-        setModalVoiceAnalysis(data[0].voice_analysis_data?.analysis ?? null);
-      } else {
-        setModalBlinkCount(null);
-        setModalVoiceAnalysis(null);
-      }
-    };
-    fetchAnalysisData();
-  }, [showAIResult, gameId, speakingUserId, currentTurn]);
+  }, [showAIResult, receivedAnalysisData]);
 
   return (
     <Container>
@@ -428,10 +742,6 @@ export default function GamePlayPage() {
           {isMyTurn && turnInProgress && (
             <>
               <div style={{ marginTop: 8, fontSize: 18 }}>남은 시간: {turnTimer}s</div>
-              <button
-                style={{ marginTop: 12, padding: '8px 24px', borderRadius: 8, background: '#00d09c', color: '#222', fontWeight: 700, border: 'none', fontSize: 18, cursor: 'pointer' }}
-                onClick={handleEndSpeech}
-              >발언 종료</button>
             </>
           )}
         </ProfileSection>
@@ -473,7 +783,13 @@ export default function GamePlayPage() {
           // expression="당황한 표정"
           vagueness={modalVoiceAnalysis ?? '모호한 발언'}
           liarProbability={76}
-          onClose={() => setShowAIResult(false)}
+          onClose={() => {
+            setShowAIResult(false);
+            // 모달 닫을 때 데이터 초기화
+            setModalBlinkCount(null);
+            setModalVoiceAnalysis(null);
+            setReceivedAnalysisData(null);
+          }}
         />
       )}
     </Container>
