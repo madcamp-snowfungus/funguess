@@ -14,17 +14,6 @@ const players = [
     { name: '백목이', color: '#F1CCFE', votes: 2, emoji: '🍄' },
 ];
 
-const aiChoice = {
-    name: '백목이',
-    color: '#F1CCFE',
-    percent: 87,
-    others: [
-        { name: '백서경', color: '#A8E5FF', percent: 10 },
-        { name: '하예영', color: '#FFF2AA', percent: 2 },
-        { name: '이연재', color: '#B5FFC3', percent: 1 },
-    ],
-};
-
 const isLiarWin = true; // true: 시민들의 추리 실패, false: 시민들의 추리 성공
 const liarNickname = '백목이'; // 라이어의 닉네임
 
@@ -43,10 +32,6 @@ const ResultPage = () => {
 
         return () => clearTimeout(timer);
     }, []);
-
-    const handleCloseModal = () => {
-        setShowVoteResult(false);
-    };
 
     const handleNext = () => {
         if (isLiarWin) {
@@ -76,25 +61,6 @@ const ResultPage = () => {
                         </PlayerWrapper>
                     ))}
                 </GridLayout>
-
-                <AIContainer>
-                    <AITitle>AI의 선택</AITitle>
-                    <AICard $bg={aiChoice.color} />
-                    <AIName>{aiChoice.name}</AIName>
-                    <AIPercent>{aiChoice.percent} %</AIPercent>
-
-                    <AIOthers>
-                        {aiChoice.others.map((p, i) => (
-                            <AIPlayer key={i}>
-                                <OthersContainer>
-                                    <ColorDot $color={p.color} />
-                                    {p.name}
-                                </OthersContainer>
-                                <span>{p.percent} %</span>
-                            </AIPlayer>
-                        ))}
-                    </AIOthers>
-                </AIContainer>
             </Content>
 
             {/* 시민들의 추리 성공 or 실패 */}
@@ -170,69 +136,4 @@ const PlayerName = styled.p`
 const VoteIcons = styled.p`
     margin-top: 6px;
     font-size: 16px;
-`;
-
-const AIContainer = styled.div`
-    width: 320px;
-    height: 340px;
-    border: 1px solid #FAFAFA55;
-    border-radius: 6px;
-    padding: 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-`;
-
-const AITitle = styled.h3`
-    font-size: 20px;
-    font-weight: 600;
-    margin-bottom: 12px;
-`;
-
-const AICard = styled.div<{ $bg: string }>`
-    width: 140px;
-    height: 80px;
-    background-color: ${({ $bg }) => $bg};
-    border-radius: 8px;
-    margin-bottom: 8px;
-`;
-
-const AIName = styled.p`
-    font-size: 20px;
-    font-weight: 500;
-    margin-bottom: 2px;
-`;
-
-const AIPercent = styled.p`
-    font-size: 18px;
-    font-weight: 400;
-`;
-
-const AIOthers = styled.div`
-    width: 140px;
-    margin-top: 20px;    
-`;
-
-const AIPlayer = styled.div`
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 16px;
-    font-weight: 400;
-    margin-bottom: 6px;
-    color: #FAFAFA;
-`;
-
-const OthersContainer = styled.div`
-    display: flex;
-    align-items: center;
-`;
-
-const ColorDot = styled.div<{ $color: string }>`
-    width: 14px;
-    height: 14px;
-    border-radius: 4px;
-    background-color: ${({ $color }) => $color};
-    margin-right: 10px;
 `;
