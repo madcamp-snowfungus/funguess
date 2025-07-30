@@ -11,99 +11,6 @@ import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 
-const cardColors = ['#F26DAC', '#21D35D', '#4791FE', '#EDE42F']
-
-const Container = styled.div`
-  height: 100vh;
-  background: #1a1a1a;
-  color: white;
-  padding: 4.5vh 5vw;
-`
-
-const MainContent = styled.main`
-  margin-top: 5vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`
-
-const ProfileSection = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`
-
-const StyledVideo = styled.video`
-  width: 30vw;
-  height: 35vh;
-  border-radius: 10px;
-  object-fit: cover;
-  transform: scaleX(-1); /* 좌우 반전 */
-`
-
-const NicknameLabel = styled.div`
-  margin-top: 8px;
-  font-size: 18px;
-  font-weight: 500;
-  color: white;
-`
-
-const InputBox = styled.div`
-  margin-top: 3vh;
-  width: 70vw;
-`
-
-const Input = styled.input`
-  width: 100%;
-  padding: 12px;
-  border-radius: 20px;
-  border: none;
-  font-size: 20px;
-  font-weight: 500;
-  background: none;
-  text-align: center;
-  color: #21D35D;
-
-  &:focus {
-    outline: none;
-  }
-`
-
-const PlayerGrid = styled.div`
-  margin-top: 7vh;
-  display: flex;
-  gap: 7.5vw;
-`
-
-const PlayerCardWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`
-
-const PlayerCard = styled.div<{ $active?: boolean; color: string }>`
-  background: ${({ color }) => color};
-  padding: 20px;
-  border-radius: 12px;
-  width: 17vw;
-  height: 20vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  border: ${({ $active }) => ($active ? '3px solid #fff' : 'none')};
-`
-
-const Dot = styled.span`
-  display: inline-block;
-  margin-right: 6px;
-  width: 10px;
-  height: 10px;
-  background: #00ff88;
-  border-radius: 50%;
-  vertical-align: middle;
-`
-
 // Mediapipe FaceMesh를 위한 CDN URL
 const MEDIAPIPE_FACEMESH_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
 const MEDIAPIPE_CAMERA_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
@@ -572,3 +479,96 @@ export default function GamePlayPage() {
     </Container>
   )
 }
+
+const cardColors = ['#F26DAC', '#21D35D', '#4791FE', '#EDE42F']
+
+const Container = styled.div`
+  height: 100vh;
+  background: #1a1a1a;
+  color: white;
+  padding: 4.5vh 5vw;
+`
+
+const MainContent = styled.main`
+  margin-top: 5vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
+
+const ProfileSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
+
+const StyledVideo = styled.video`
+  width: 30vw;
+  height: 35vh;
+  border-radius: 10px;
+  object-fit: cover;
+  transform: scaleX(-1); /* 좌우 반전 */
+`
+
+const NicknameLabel = styled.div`
+  margin-top: 8px;
+  font-size: 18px;
+  font-weight: 500;
+  color: white;
+`
+
+const InputBox = styled.div`
+  margin-top: 3vh;
+  width: 70vw;
+`
+
+const Input = styled.input`
+  width: 100%;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  font-size: 20px;
+  font-weight: 500;
+  background: none;
+  text-align: center;
+  color: #21D35D;
+
+  &:focus {
+    outline: none;
+  }
+`
+
+const PlayerGrid = styled.div`
+  margin-top: 7vh;
+  display: flex;
+  gap: 7.5vw;
+`
+
+const PlayerCardWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`
+
+const PlayerCard = styled.div<{ $active?: boolean; color: string }>`
+  background: ${({ color }) => color};
+  padding: 20px;
+  border-radius: 12px;
+  width: 17vw;
+  height: 20vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: ${({ $active }) => ($active ? '3px solid #fff' : 'none')};
+`
+
+const Dot = styled.span`
+  display: inline-block;
+  margin-right: 6px;
+  width: 10px;
+  height: 10px;
+  background: #00ff88;
+  border-radius: 50%;
+  vertical-align: middle;
+`
