@@ -3,29 +3,49 @@
 
 import React, { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import FinalResultModal from "@/components/FinalResultModal";
 
 const GuessPage = () => {
     const searchParams = useSearchParams();
+    const params = useParams();
+    const gameCode = params.code as string;
+
     const role = searchParams.get('role');
     const isLiar = role === 'liar';
+    const isPlayer = role === 'player';
 
-    const [guess, setGuess] = useState("");
+    const [guess, setGuess] = useState('');
+    const [answer, setAnswer] = useState('');
     const [showResult, setShowResult] = useState(false);
     const [isLiarWin, setIsLiarWin] = useState(false);
 
-    const answer = "정답";
+    useEffect(() => {
+        const fetchKeyword = async () => {
+            const res = await fetch(`/api/keyword?gameCode=${gameCode}`);
+            const data = await res.json();
+            if (res.ok) setAnswer(data.keyword);
+        };
+
+        if (isLiar) fetchKeyword();
+    }, [gameCode, isLiar]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (guess.trim() === answer) {
-            setIsLiarWin(true);
-        } else {
-            setIsLiarWin(false);
-        }
+        const trimmedGuess = guess.trim();
+        const trimmedAnswer = answer.trim();
+
+        setIsLiarWin(trimmedGuess !== '' && trimmedGuess === trimmedAnswer);
         setShowResult(true);
     };
+
+    if (!isLiar && !isPlayer) {
+        return (
+        <Overlay>
+            <Message>잘못된 접근입니다.</Message>
+        </Overlay>
+        );
+    }
 
     // liar : 제시어 추측 화면
     if (isLiar) {
