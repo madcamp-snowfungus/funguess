@@ -4,10 +4,10 @@
 import styled from 'styled-components'
 import { motion } from 'framer-motion'
 
-interface AIResultModalProps {
+export interface AIResultModalProps {
   speakerName: string
   blinkCount: number
-  expression: string
+  // expression: string
   vagueness: string
   liarProbability: number
   onClose: () => void
@@ -16,7 +16,7 @@ interface AIResultModalProps {
 export default function AIResultModal({
   speakerName,
   blinkCount,
-  expression,
+  // expression,
   vagueness,
   liarProbability,
   onClose,
@@ -34,8 +34,8 @@ export default function AIResultModal({
         <Probability>{liarProbability}%</Probability>
         <Divider />
         <Info><Icon>👀</Icon> 눈 깜빡임 <Value>{blinkCount}회</Value></Info>
-        <Info><Icon>😬</Icon> 표정 <Value>{expression}</Value></Info>
-        <Info><Icon>💬</Icon> 발언 <Value>{vagueness}</Value></Info>
+        {/* <Info><Icon>😬</Icon> 표정 <Value>{expression}</Value></Info> */}
+        <Info><Icon>💬</Icon> 모호함 <Value>{vagueness}</Value></Info>
         <CloseButton onClick={onClose}>닫기</CloseButton>
       </ModalContainer>
     </Overlay>
