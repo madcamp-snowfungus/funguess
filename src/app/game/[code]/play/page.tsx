@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 
+
 // Mediapipe FaceMesh를 위한 CDN URL
 const MEDIAPIPE_FACEMESH_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
 const MEDIAPIPE_CAMERA_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
@@ -257,7 +258,7 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket(`ws://${process.env.NEXT_AWS_IP}:8081`);
+    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
     gameSocketRef.current = gameSocket;
 
     gameSocket.onopen = () => {
@@ -356,7 +357,7 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket(`ws://${process.env.NEXT_AWS_IP}:8080`);
+    const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
     // const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
