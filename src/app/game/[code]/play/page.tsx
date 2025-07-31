@@ -287,7 +287,7 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket(`wss://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
+    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
     // const gameSocket = new WebSocket('ws://localhost:8081');
     gameSocketRef.current = gameSocket;
 
