@@ -35,7 +35,7 @@ export default function GamePlayPage() {
 
   // Turn state - WebSocket으로 동기화
   const [currentTurn, setCurrentTurn] = useState(0);
-  const [turnTimer, setTurnTimer] = useState(15);
+  const [turnTimer, setTurnTimer] = useState(10);
   const [turnInProgress, setTurnInProgress] = useState(true);
   const [showAILoading, setShowAILoading] = useState(false);
   const [showAIResult, setShowAIResult] = useState(false);
