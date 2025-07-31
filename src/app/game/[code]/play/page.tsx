@@ -392,7 +392,7 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket(`wss://unguess.duckdns.org:8080`);
+    const sttSocket = new WebSocket(`wss://funguess.duckdns.org:8080`);
     // const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
