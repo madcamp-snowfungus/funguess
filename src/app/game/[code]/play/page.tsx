@@ -287,7 +287,7 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket('wss://funguess.duckdns.org/ws8081/');
+    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
     // const gameSocket = new WebSocket('ws://localhost:8081');
     gameSocketRef.current = gameSocket;
 
@@ -392,7 +392,7 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket('wss://funguess.duckdns.org/ws8080/');
+    const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
     // const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
@@ -621,8 +621,8 @@ export default function GamePlayPage() {
 
       if (leftIris) {
         const prev = prevLeftIrisRef.current;
-        const JITTER_THRESHOLD = 0.01;       // 눈동자가 이 정도 이상 움직이면 흔들림
-        const JITTER_DEBOUNCE_MS = 300; 
+        const JITTER_THRESHOLD = 0.015;     // 작은 움직임(노이즈)을 무시하기 위한 임계값(눈동자가 이 정도 이상 움직이면 흔들림)
+        const JITTER_DEBOUNCE_MS = 600;     // 연속된 움직임을 안정화시키기 위한 시간 지연(ms 단위)
         if (prev) {
           const dx = leftIris.x - prev.x;
           const dy = leftIris.y - prev.y;
