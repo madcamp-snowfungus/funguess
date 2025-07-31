@@ -287,7 +287,7 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket(`wss://funguess.duckdns.org:8081`);
+    const gameSocket = new WebSocket('wss://funguess.duckdns.org/ws8081/');
     // const gameSocket = new WebSocket('ws://localhost:8081');
     gameSocketRef.current = gameSocket;
 
@@ -392,7 +392,7 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket(`wss://funguess.duckdns.org:8080`);
+    const sttSocket = new WebSocket('wss://funguess.duckdns.org/ws8080/');
     // const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
