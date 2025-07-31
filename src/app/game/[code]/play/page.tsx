@@ -764,7 +764,7 @@ export default function GamePlayPage() {
               100,
               Number(
                 (
-                  ((modalVoiceAnalysisScore ?? 0) * 0.7) +
+                  ((modalVoiceAnalysisScore ?? 80) * 0.7) +
                   ((modalBlinkCount ?? 0) * 10 * 0.1) +
                   ((modalJitterCount ?? 0) * 10 * 0.2)
                 ).toFixed(1)
