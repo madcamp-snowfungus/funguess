@@ -318,6 +318,11 @@ export default function GamePlayPage() {
           setTurnInProgress(false); // 턴 시작 시 비활성화
           break;
         case 'timer':
+          // AI 모달이 표시 중이면 타이머 시작을 지연
+          if (showAILoading || showAIResult) {
+            console.log('⏳ AI modal is showing, delaying timer start');
+            return;
+          }
           setTurnTimer(data.timer);
           setTurnInProgress(true); // 타이머 시작과 함께 턴 활성화
           break;
@@ -779,6 +784,17 @@ export default function GamePlayPage() {
             setModalVoiceAnalysis(null);
             setModalVoiceAnalysisScore(null);
             setReceivedAnalysisData(null);
+            
+            // 모달이 완전히 닫힌 후 타이머 시작 요청
+            setTimeout(() => {
+              if (gameSocketRef.current?.readyState === 1) {
+                console.log('🚀 AI modal closed, requesting timer start');
+                gameSocketRef.current.send(JSON.stringify({
+                  type: 'requestTimer',
+                  roomId: gameCode
+                }));
+              }
+            }, 500); // 모달 애니메이션 완료 대기
           }}
         />
       )}
