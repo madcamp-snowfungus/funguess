@@ -241,7 +241,7 @@ export default function GamePlayPage() {
       setModalBlinkCount(finalBlinkCount);
       setModalJitterCount(finalJitterCount);
       setModalVoiceAnalysis(voiceAnalysisResult || finalMessage || '발언 내용이 없습니다');
-      setModalVoiceAnalysisScore(voiceAnalysisScore ?? 0);
+      setModalVoiceAnalysisScore(voiceAnalysisScore ?? 80);
       
       setShowAILoading(true);
       setTimeout(() => {
@@ -353,7 +353,7 @@ export default function GamePlayPage() {
               setModalBlinkCount(blinkCount);
               setModalJitterCount(jitterCount);
               setModalVoiceAnalysis(message || '발언 내용이 없습니다');
-              setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
+              setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 80);
               
               setShowAILoading(true);
               setTimeout(() => {
@@ -371,7 +371,7 @@ export default function GamePlayPage() {
             setModalBlinkCount(data.analysisData.blinkCount);
             setModalJitterCount(data.analysisData.jitterCount);
             setModalVoiceAnalysis(data.analysisData.voiceAnalysis || data.analysisData.transcript || '발언 내용이 없습니다');
-            setModalVoiceAnalysisScore(data.analysisData.voiceAnalysisScore ?? 0);
+            setModalVoiceAnalysisScore(data.analysisData.voiceAnalysisScore ?? 80);
           }
           break;
       }
@@ -687,7 +687,7 @@ export default function GamePlayPage() {
       console.log('🔍 Using received analysis data:', receivedAnalysisData);
       setModalBlinkCount(receivedAnalysisData.blinkCount);
       setModalVoiceAnalysis(receivedAnalysisData.voiceAnalysis || receivedAnalysisData.transcript || '발언 내용이 없습니다');
-      setModalVoiceAnalysisScore(receivedAnalysisData.voiceAnalysisScore ?? 0);
+      setModalVoiceAnalysisScore(receivedAnalysisData.voiceAnalysisScore ?? 80);
       setModalJitterCount(receivedAnalysisData.jitterCount ?? 0);
     } else {
       console.log('🔍 Using local data:', {
@@ -698,7 +698,7 @@ export default function GamePlayPage() {
       setModalBlinkCount(blinkCountRef.current);
       setModalJitterCount(jitterCountRef.current);
       setModalVoiceAnalysis(voiceAnalysisResultRef.current || messageRef.current || '발언 내용이 없습니다');
-      setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
+      setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 80);
     }
   }, [showAIResult, receivedAnalysisData]);
 
@@ -764,7 +764,7 @@ export default function GamePlayPage() {
               100,
               Number(
                 (
-                  ((modalVoiceAnalysisScore ?? 0) * 0.7) +
+                  ((modalVoiceAnalysisScore ?? 80) * 0.7) +
                   ((modalBlinkCount ?? 0) * 10 * 0.1) +
                   ((modalJitterCount ?? 0) * 10 * 0.2)
                 ).toFixed(1)
