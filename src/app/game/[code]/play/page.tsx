@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { useParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
 
+
 // Mediapipe FaceMesh를 위한 CDN URL
 const MEDIAPIPE_FACEMESH_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js';
 const MEDIAPIPE_CAMERA_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js';
@@ -57,14 +58,17 @@ export default function GamePlayPage() {
 
   const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
   const [modalVoiceAnalysis, setModalVoiceAnalysis] = useState<string | null>(null);
+  const [modalVoiceAnalysisScore, setModalVoiceAnalysisScore] = useState<number | null>(null);
   // 최신 값 보존용 ref
   const messageRef = useRef(message);
   const blinkCountRef = useRef(blinkCount);
   const voiceAnalysisResultRef = useRef<string | null>(null);
+  const voiceAnalysisScoreRef = useRef<number | null>(null);
   // WebSocket으로 받은 분석 데이터 저장용 state
   const [receivedAnalysisData, setReceivedAnalysisData] = useState<{
     blinkCount: number;
     voiceAnalysis: string;
+    voiceAnalysisScore: number;
     transcript: string;
   } | null>(null);
 
@@ -144,150 +148,6 @@ export default function GamePlayPage() {
     }
   }, []);
 
-  // 턴 종료 핸들러
-  // const handleTurnEnd = async (turnNumber: number, capturedMessage?: string, capturedBlinkCount?: number) => {
-  //   // 이미 턴이 종료된 상태면 중복 실행 방지
-  //   if (!turnInProgress) return;
-    
-  //   setTurnInProgress(false);
-  //   let voiceAnalysisResult = null;
-    
-  //   // 캡처된 데이터 사용, 없으면 현재 상태 사용
-  //   const finalMessage = capturedMessage || message;
-  //   const finalBlinkCount = capturedBlinkCount || blinkCount;
-    
-  //   console.log('handleTurnEnd', finalMessage, keyword);
-  //   console.log('Current turn for DB:', turnNumber);
-  //   console.log('📊 Current data:', {
-  //     message: finalMessage,
-  //     messageLength: finalMessage?.length,
-  //     blinkCount: finalBlinkCount,
-  //     keyword: keyword
-  //   });
-    
-  //   // 현재 턴 번호로 발언자 계산
-  //   const speakerIdx = turnNumber % participants.length;
-  //   const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
-  //   const isCurrentSpeaker = myUserId && currentSpeakerUserId === myUserId;
-    
-  //   console.log(`🎤 Turn ${turnNumber}: Speaker index=${speakerIdx}, Speaker ID=${currentSpeakerUserId}, Is my turn=${isCurrentSpeaker}`);
-    
-  //   // 발언자인 경우에만 Gemini 분석 수행 (transcript가 있을 때만)
-  //   if (gameId && currentSpeakerUserId && isCurrentSpeaker && finalMessage.trim() && keyword) {
-  //     console.log('🔍 Starting Gemini analysis...');
-  //     console.log('📝 Analysis data:', {
-  //       transcript: finalMessage,
-  //       keyword: keyword,
-  //       blinkCount: finalBlinkCount
-  //     });
-      
-  //     try {
-  //       const res = await fetch('/api/gemini-analyze', {
-  //         method: 'POST',
-  //         headers: { 'Content-Type': 'application/json' },
-  //         body: JSON.stringify({ transcript: finalMessage, keyword }),
-  //       });
-        
-  //       console.log('📡 Gemini API response status:', res.status);
-        
-  //       const data = await res.json();
-  //       console.log('📊 Gemini API response:', data);
-        
-  //       voiceAnalysisResult = data.analysis || null;
-  //       console.log('✅ Gemini analysis result:', voiceAnalysisResult);
-  //     } catch (e) {
-  //       console.error('❌ Gemini 분석 실패:', e);
-  //       voiceAnalysisResult = null;
-  //     }
-  //   } else if (gameId && currentSpeakerUserId && isCurrentSpeaker && !finalMessage.trim()) {
-  //     console.log('🚫 transcript가 비어있어서 Gemini 분석 건너뜀');
-  //     voiceAnalysisResult = '발언 내용이 없습니다';
-  //   } else if (gameId && currentSpeakerUserId && isCurrentSpeaker && !keyword) {
-  //     console.log('🚫 keyword가 로드되지 않아서 Gemini 분석 건너뜀');
-  //     voiceAnalysisResult = '키워드 정보 없음';
-  //   } else {
-  //     console.log('🚫 Gemini 분석 조건 불만족:', {
-  //       gameId: !!gameId,
-  //       currentSpeakerUserId: !!currentSpeakerUserId,
-  //       isCurrentSpeaker,
-  //       hasMessage: !!finalMessage.trim(),
-  //       hasKeyword: !!keyword
-  //     });
-  //   }
-    
-  //   // DB 저장 (발언자만 저장)
-  //   if (gameId && currentSpeakerUserId && isCurrentSpeaker) {
-  //     try {
-  //       console.log(`💾 Saving to DB: turn_number=${turnNumber}, user_id=${currentSpeakerUserId}`);
-  //       console.log(`📝 Data to save:`, {
-  //         game_id: gameId,
-  //         turn_number: turnNumber,
-  //         turn_user_id: currentSpeakerUserId,
-  //         transcript: finalMessage,
-  //         face_analysis_data: { blinkCount: finalBlinkCount },
-  //         voice_analysis_data: { analysis: voiceAnalysisResult },
-  //         finished_at: new Date().toISOString(),
-  //       });
-        
-  //       const { error } = await supabase.from('turns').insert({
-  //         game_id: gameId,
-  //         turn_number: turnNumber,
-  //         turn_user_id: currentSpeakerUserId,
-  //         transcript: finalMessage,
-  //         face_analysis_data: { blinkCount: finalBlinkCount },
-  //         voice_analysis_data: { analysis: voiceAnalysisResult },
-  //         finished_at: new Date().toISOString(),
-  //       });
-        
-  //       if (error) {
-  //         console.error('DB 저장 실패:', error);
-  //       } else {
-  //         console.log('DB 저장 성공');
-  //         setBlinkCount(0);
-  //         setLastEAR(0);
-  //         setBlinkActive(false);
-  //         lastBlinkTimeRef.current = 0;
-  //         setMessage('');
-  //       }
-  //     } catch (e) {
-  //       console.error('DB 저장 중 오류:', e);
-  //     }
-  //   } else {
-  //     console.log('❌ DB 저장 조건 불만족:', {
-  //       gameId,
-  //       currentSpeakerUserId,
-  //       isCurrentSpeaker,
-  //       isMyTurn,
-  //       myUserId
-  //     });
-  //   }
-    
-  //   setTurnsCount((prev) => prev + 1);
-    
-  //   // AI 분석 모달: 발언자 제외 모두에게 표시
-  //   if (!isCurrentSpeaker) {
-  //     setShowAILoading(true);
-  //     setTimeout(() => {
-  //       setShowAILoading(false);
-  //       setTimeout(() => setShowAIResult(true), 2000);
-  //     }, 1500);
-  //     setTimeout(() => setShowAIResult(false), 4500);
-  //   }
-    
-  //   // WebSocket으로 분석 결과 전송 (모든 클라이언트가 받음)
-  //   if (gameSocketRef.current?.readyState === 1) {
-  //     gameSocketRef.current.send(JSON.stringify({
-  //       type: 'turnEnd',
-  //       roomId: gameCode,
-  //       analysisData: {
-  //         blinkCount: finalBlinkCount,
-  //         voiceAnalysis: voiceAnalysisResult,
-  //         transcript: finalMessage
-  //       }
-  //     }));
-  //   }
-  // };
-
   const handleTurnEnd = async (turnNumber: number) => {
     if (!turnInProgress) return;
     setTurnInProgress(false);
@@ -300,6 +160,7 @@ export default function GamePlayPage() {
     console.log('→ blinkCount:', finalBlinkCount);
   
     let voiceAnalysisResult = null;
+    let voiceAnalysisScore = null;
   
     const speakerIdx = turnNumber % participants.length;
     const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
@@ -324,6 +185,8 @@ export default function GamePlayPage() {
         const data = await res.json();
         voiceAnalysisResult = data.analysis || null;
         voiceAnalysisResultRef.current = voiceAnalysisResult;
+        voiceAnalysisScore = data.score || null;
+        voiceAnalysisScoreRef.current = data.score || null;
       } catch (e) {
         console.error('Gemini 분석 실패:', e);
         voiceAnalysisResult = null;
@@ -355,6 +218,7 @@ export default function GamePlayPage() {
       // 모달 데이터 즉시 설정
       setModalBlinkCount(finalBlinkCount);
       setModalVoiceAnalysis(voiceAnalysisResult || finalMessage || '발언 내용이 없습니다');
+      setModalVoiceAnalysisScore(voiceAnalysisScore ?? 0);
       
       setShowAILoading(true);
       setTimeout(() => {
@@ -371,6 +235,7 @@ export default function GamePlayPage() {
         analysisData: {
           blinkCount: finalBlinkCount,
           voiceAnalysis: voiceAnalysisResult,
+          voiceAnalysisScore: voiceAnalysisScore,
           transcript: finalMessage,
         },
       }));
@@ -393,7 +258,7 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket('ws://localhost:8081');
+    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
     gameSocketRef.current = gameSocket;
 
     gameSocket.onopen = () => {
@@ -454,6 +319,7 @@ export default function GamePlayPage() {
               // 모달 데이터 즉시 설정
               setModalBlinkCount(blinkCount);
               setModalVoiceAnalysis(message || '발언 내용이 없습니다');
+              setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
               
               setShowAILoading(true);
               setTimeout(() => {
@@ -470,6 +336,7 @@ export default function GamePlayPage() {
             // 모달 데이터 즉시 설정
             setModalBlinkCount(data.analysisData.blinkCount);
             setModalVoiceAnalysis(data.analysisData.voiceAnalysis || data.analysisData.transcript || '발언 내용이 없습니다');
+            setModalVoiceAnalysisScore(data.analysisData.voiceAnalysisScore ?? 0);
           }
           break;
       }
@@ -490,7 +357,8 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket('ws://localhost:8080');
+    const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
+    // const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
     sttSocket.onmessage = (event) => {
@@ -715,6 +583,7 @@ export default function GamePlayPage() {
       console.log('🔍 Using received analysis data:', receivedAnalysisData);
       setModalBlinkCount(receivedAnalysisData.blinkCount);
       setModalVoiceAnalysis(receivedAnalysisData.voiceAnalysis || receivedAnalysisData.transcript || '발언 내용이 없습니다');
+      setModalVoiceAnalysisScore(receivedAnalysisData.voiceAnalysisScore ?? 0);
     } else {
       console.log('🔍 Using local data:', {
         blinkCount: blinkCountRef.current,
@@ -723,6 +592,7 @@ export default function GamePlayPage() {
       });
       setModalBlinkCount(blinkCountRef.current);
       setModalVoiceAnalysis(voiceAnalysisResultRef.current || messageRef.current || '발언 내용이 없습니다');
+      setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
     }
   }, [showAIResult, receivedAnalysisData]);
 
@@ -782,12 +652,13 @@ export default function GamePlayPage() {
           blinkCount={modalBlinkCount ?? 0}
           // expression="당황한 표정"
           vagueness={modalVoiceAnalysis ?? '모호한 발언'}
-          liarProbability={76}
+          liarProbability={((modalVoiceAnalysisScore ?? 0)*0.7+(modalBlinkCount ?? 0)*10*0.3)}
           onClose={() => {
             setShowAIResult(false);
             // 모달 닫을 때 데이터 초기화
             setModalBlinkCount(null);
             setModalVoiceAnalysis(null);
+            setModalVoiceAnalysisScore(null);
             setReceivedAnalysisData(null);
           }}
         />
