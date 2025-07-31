@@ -621,8 +621,8 @@ export default function GamePlayPage() {
 
       if (leftIris) {
         const prev = prevLeftIrisRef.current;
-        const JITTER_THRESHOLD = 0.015;     // 작은 움직임(노이즈)을 무시하기 위한 임계값(눈동자가 이 정도 이상 움직이면 흔들림)
-        const JITTER_DEBOUNCE_MS = 600;     // 연속된 움직임을 안정화시키기 위한 시간 지연(ms 단위)
+        const JITTER_THRESHOLD = 0.01;       // 눈동자가 이 정도 이상 움직이면 흔들림
+        const JITTER_DEBOUNCE_MS = 300; 
         if (prev) {
           const dx = leftIris.x - prev.x;
           const dy = leftIris.y - prev.y;

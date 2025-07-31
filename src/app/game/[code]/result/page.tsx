@@ -66,10 +66,9 @@ const ResultPage = () => {
 
         fetchVoteResult();
 
-        // 시민 추리 성공 or 실패 모달 출력 시간
         const timer = setTimeout(() => {
             setShowVoteResult(true);
-        }, 8000);
+        }, 5000);
 
         return () => clearTimeout(timer);
     }, [code]);
@@ -79,11 +78,11 @@ const ResultPage = () => {
         const role = userInfo.role || 'player';
 
         if (isLiarWin) {
-            // 시민 추리 실패 → 바로 최종 결과 모달 표시
+            // 시민 추측 실패 → 바로 최종 결과 모달 표시
             setShowVoteResult(false);
             setShowFinalResult(true);
         } else {
-            // 시민 추리 성공 → role에 따라 guess 페이지로 이동
+            // 시민 추측 성공 → role에 따라 guess 페이지로 이동
             router.push(`/game/${code}/guess?role=${role}`);
         }
     };
