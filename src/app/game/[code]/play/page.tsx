@@ -48,6 +48,7 @@ export default function GamePlayPage() {
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [blinkCount, setBlinkCount] = useState(0);
+  const [jitterCount, setJitterCount] = useState(0);
   const faceMeshRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const [faceMeshReady, setFaceMeshReady] = useState(false);
@@ -55,18 +56,26 @@ export default function GamePlayPage() {
   const [lastEAR, setLastEAR] = useState(0);
   const [blinkActive, setBlinkActive] = useState(false);
   const lastBlinkTimeRef = useRef<number>(0);
+  const lastJitterTimeRef = useRef<number>(0);
+
+  const prevLeftIrisRef = useRef<{ x: number; y: number } | null>(null);
+  const jitterSumRef = useRef(0);
+  
 
   const [modalBlinkCount, setModalBlinkCount] = useState<number | null>(null);
+  const [modalJitterCount, setModalJitterCount] = useState<number | null>(null);
   const [modalVoiceAnalysis, setModalVoiceAnalysis] = useState<string | null>(null);
   const [modalVoiceAnalysisScore, setModalVoiceAnalysisScore] = useState<number | null>(null);
   // 최신 값 보존용 ref
   const messageRef = useRef(message);
   const blinkCountRef = useRef(blinkCount);
+  const jitterCountRef = useRef(jitterCount);
   const voiceAnalysisResultRef = useRef<string | null>(null);
   const voiceAnalysisScoreRef = useRef<number | null>(null);
   // WebSocket으로 받은 분석 데이터 저장용 state
   const [receivedAnalysisData, setReceivedAnalysisData] = useState<{
     blinkCount: number;
+    jitterCount: number;
     voiceAnalysis: string;
     voiceAnalysisScore: number;
     transcript: string;
@@ -154,10 +163,12 @@ export default function GamePlayPage() {
   
     const finalMessage = messageRef.current;
     const finalBlinkCount = blinkCountRef.current;
+    const finalJitterCount = jitterCountRef.current;
   
     console.log('📊 handleTurnEnd() 실행');
     console.log('→ message:', finalMessage);
     console.log('→ blinkCount:', finalBlinkCount);
+    console.log('→ jitterCount:', finalJitterCount);
   
     let voiceAnalysisResult = null;
     let voiceAnalysisScore = null;
@@ -217,6 +228,7 @@ export default function GamePlayPage() {
     if (!isCurrentSpeaker) {
       // 모달 데이터 즉시 설정
       setModalBlinkCount(finalBlinkCount);
+      setModalJitterCount(finalJitterCount);
       setModalVoiceAnalysis(voiceAnalysisResult || finalMessage || '발언 내용이 없습니다');
       setModalVoiceAnalysisScore(voiceAnalysisScore ?? 0);
       
@@ -234,6 +246,7 @@ export default function GamePlayPage() {
         roomId: gameCode,
         analysisData: {
           blinkCount: finalBlinkCount,
+          jitterCount: finalJitterCount,
           voiceAnalysis: voiceAnalysisResult,
           voiceAnalysisScore: voiceAnalysisScore,
           transcript: finalMessage,
@@ -243,9 +256,11 @@ export default function GamePlayPage() {
   
     // 상태 초기화
     setBlinkCount(0);
+    setJitterCount(0);
     setLastEAR(0);
     setBlinkActive(false);
     lastBlinkTimeRef.current = 0;
+    lastJitterTimeRef.current = 0;
     setMessage('');
   };
   
@@ -311,6 +326,7 @@ export default function GamePlayPage() {
               // 현재 데이터를 캡처해서 전달
               const currentMessage = message;
               const currentBlinkCount = blinkCount;
+              const currentJitterCount = jitterCount;
               console.log(`📸 Capturing current data: message="${currentMessage}", blinkCount=${currentBlinkCount}`);
               handleTurnEnd(data.turn);
             } else {
@@ -318,6 +334,7 @@ export default function GamePlayPage() {
               // 비발언자에게 AI 분석 모달 표시 (현재 클라이언트의 데이터 사용)
               // 모달 데이터 즉시 설정
               setModalBlinkCount(blinkCount);
+              setModalJitterCount(jitterCount);
               setModalVoiceAnalysis(message || '발언 내용이 없습니다');
               setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
               
@@ -335,6 +352,7 @@ export default function GamePlayPage() {
             setReceivedAnalysisData(data.analysisData);
             // 모달 데이터 즉시 설정
             setModalBlinkCount(data.analysisData.blinkCount);
+            setModalJitterCount(data.analysisData.jitterCount);
             setModalVoiceAnalysis(data.analysisData.voiceAnalysis || data.analysisData.transcript || '발언 내용이 없습니다');
             setModalVoiceAnalysisScore(data.analysisData.voiceAnalysisScore ?? 0);
           }
@@ -521,6 +539,8 @@ export default function GamePlayPage() {
       if (!isMyTurnRef.current) return;
       if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) return;
       const landmarks = results.multiFaceLandmarks[0];
+      const leftIris = landmarks[468];
+
       const ear = calcEAR(landmarks);
       const BLINK_THRESHOLD = 0.21;
       const BLINK_DEBOUNCE_MS = 200;
@@ -539,6 +559,57 @@ export default function GamePlayPage() {
         setBlinkActive(false);
       }
       setLastEAR(ear);
+
+    //   if (leftIris) {
+    //     const prev = prevLeftIrisRef.current;
+    //     if (prev) {
+    //       const dx = leftIris.x - prev.x;
+    //       const dy = leftIris.y - prev.y;
+    //       const delta = Math.sqrt(dx * dx + dy * dy);
+    
+    //       // 너무 큰 값은 제외 (잡음 제거)
+    //       if (delta < 0.02) {
+    //         jitterSumRef.current += delta;
+    //         jitterCountRef.current += 1;
+    //       }
+    
+    //       // 평균 jitter 출력
+    //       const jitterAvg =
+    //         jitterCountRef.current > 0
+    //           ? jitterSumRef.current / jitterCountRef.current
+    //           : 0;
+    
+    //       setJitterCount(jitterAvg);
+    //       // console.log('👀 eyeJitter:', jitterAvg.toFixed(5));
+    //       console.log('👀 eyeJitter:', jitterAvg.toFixed(5));
+    //     }
+    //     prevLeftIrisRef.current = { x: leftIris.x, y: leftIris.y };
+    //   }
+    // });
+
+      if (leftIris) {
+        const prev = prevLeftIrisRef.current;
+        const JITTER_THRESHOLD = 0.01;       // 눈동자가 이 정도 이상 움직이면 흔들림
+        const JITTER_DEBOUNCE_MS = 300; 
+        if (prev) {
+          const dx = leftIris.x - prev.x;
+          const dy = leftIris.y - prev.y;
+          const delta = Math.sqrt(dx * dx + dy * dy);
+          const now = Date.now();
+      
+          if (delta > JITTER_THRESHOLD && now - lastJitterTimeRef.current > JITTER_DEBOUNCE_MS) {
+            setJitterCount((prev) => {
+              const newCount = prev + 1;
+              jitterCountRef.current = newCount;
+              console.log(`👁️ 동공지진 감지! delta: ${delta.toFixed(4)} count: ${newCount}`);
+              return newCount;
+            });
+            // jitterCountRef.current = jitterCount;
+            lastJitterTimeRef.current = now;
+          }
+        }
+        prevLeftIrisRef.current = { x: leftIris.x, y: leftIris.y };
+      }
     });
     const camera = new window.Camera(videoRef.current, {
       onFrame: async () => {
@@ -576,6 +647,7 @@ export default function GamePlayPage() {
     console.log('🔍 Modal data setup - showAIResult:', showAIResult);
     console.log('🔍 receivedAnalysisData:', receivedAnalysisData);
     console.log('🔍 blinkCountRef.current:', blinkCountRef.current);
+    console.log('🔍 jitterCountRef.current:', jitterCountRef.current);
     console.log('🔍 voiceAnalysisResultRef.current:', voiceAnalysisResultRef.current);
     console.log('🔍 messageRef.current:', messageRef.current);
     
@@ -584,6 +656,7 @@ export default function GamePlayPage() {
       setModalBlinkCount(receivedAnalysisData.blinkCount);
       setModalVoiceAnalysis(receivedAnalysisData.voiceAnalysis || receivedAnalysisData.transcript || '발언 내용이 없습니다');
       setModalVoiceAnalysisScore(receivedAnalysisData.voiceAnalysisScore ?? 0);
+      setModalJitterCount(receivedAnalysisData.jitterCount ?? 0);
     } else {
       console.log('🔍 Using local data:', {
         blinkCount: blinkCountRef.current,
@@ -591,6 +664,7 @@ export default function GamePlayPage() {
         message: messageRef.current
       });
       setModalBlinkCount(blinkCountRef.current);
+      setModalJitterCount(jitterCountRef.current);
       setModalVoiceAnalysis(voiceAnalysisResultRef.current || messageRef.current || '발언 내용이 없습니다');
       setModalVoiceAnalysisScore(voiceAnalysisScoreRef.current ?? 0);
     }
@@ -650,13 +724,15 @@ export default function GamePlayPage() {
         <AIResultModal
           speakerName={speakingUser}
           blinkCount={modalBlinkCount ?? 0}
+          jitterCount={modalJitterCount ?? 0}
           // expression="당황한 표정"
           vagueness={modalVoiceAnalysis ?? '모호한 발언'}
-          liarProbability={((modalVoiceAnalysisScore ?? 0)*0.7+(modalBlinkCount ?? 0)*10*0.3)}
+          liarProbability={Math.min(100,((modalVoiceAnalysisScore ?? 0)*0.7+(modalBlinkCount ?? 0)*10*0.1+(modalJitterCount ?? 0)*10*0.2))}
           onClose={() => {
             setShowAIResult(false);
             // 모달 닫을 때 데이터 초기화
             setModalBlinkCount(null);
+            setModalJitterCount(null);
             setModalVoiceAnalysis(null);
             setModalVoiceAnalysisScore(null);
             setReceivedAnalysisData(null);
