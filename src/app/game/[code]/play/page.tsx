@@ -35,7 +35,7 @@ export default function GamePlayPage() {
 
   // Turn state - WebSocket으로 동기화
   const [currentTurn, setCurrentTurn] = useState(0);
-  const [turnTimer, setTurnTimer] = useState(10);
+  const [turnTimer, setTurnTimer] = useState(15);
   const [turnInProgress, setTurnInProgress] = useState(true);
   const [showAILoading, setShowAILoading] = useState(false);
   const [showAIResult, setShowAIResult] = useState(false);
@@ -287,8 +287,8 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
-    // const gameSocket = new WebSocket('ws://localhost:8081');
+    // const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
+    const gameSocket = new WebSocket('ws://localhost:8081');
     gameSocketRef.current = gameSocket;
 
     gameSocket.onopen = () => {
@@ -392,8 +392,8 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
-    // const sttSocket = new WebSocket('ws://localhost:8080');
+    // const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
+    const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
     sttSocket.onmessage = (event) => {
