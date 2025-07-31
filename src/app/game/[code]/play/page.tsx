@@ -41,6 +41,7 @@ export default function GamePlayPage() {
   const [showAIResult, setShowAIResult] = useState(false);
   const [message, setMessage] = useState('');
   const [turnsCount, setTurnsCount] = useState(0);
+  const [currentSpeakerName, setCurrentSpeakerName] = useState('');
   
   // WebSocket refs
   const gameSocketRef = useRef<WebSocket | null>(null);
@@ -170,6 +171,11 @@ export default function GamePlayPage() {
     console.log('→ blinkCount:', finalBlinkCount);
     console.log('→ jitterCount:', finalJitterCount);
   
+    // STT 서버에 턴 종료 메시지 전송
+    if (sttSocketRef.current?.readyState === 1) {
+      sttSocketRef.current.send(JSON.stringify({ type: 'turnEnd' }));
+    }
+  
     let voiceAnalysisResult = null;
     let voiceAnalysisScore = null;
   
@@ -227,6 +233,11 @@ export default function GamePlayPage() {
   
     if (!isCurrentSpeaker) {
       // 모달 데이터 즉시 설정
+
+      const speakerIdx = turnNumber % participants.length;
+      const name = participants[speakerIdx]?.users?.user_nickname || '';
+      setCurrentSpeakerName(name);
+
       setModalBlinkCount(finalBlinkCount);
       setModalJitterCount(finalJitterCount);
       setModalVoiceAnalysis(voiceAnalysisResult || finalMessage || '발언 내용이 없습니다');
@@ -237,7 +248,7 @@ export default function GamePlayPage() {
         setShowAILoading(false);
         setTimeout(() => setShowAIResult(true), 2000);
       }, 2000);
-      setTimeout(() => setShowAIResult(false), 5000);
+      setTimeout(() => setShowAIResult(false), 7000);
     }
   
     if (gameSocketRef.current?.readyState === 1) {
@@ -262,6 +273,9 @@ export default function GamePlayPage() {
     lastBlinkTimeRef.current = 0;
     lastJitterTimeRef.current = 0;
     setMessage('');
+    
+    // 메시지 ref도 초기화
+    messageRef.current = '';
   };
   
 
@@ -273,7 +287,8 @@ export default function GamePlayPage() {
   useEffect(() => {
     if (!gameId || !participants.length) return;
 
-    const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
+    // const gameSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8081`);
+    const gameSocket = new WebSocket('ws://localhost:8081');
     gameSocketRef.current = gameSocket;
 
     gameSocket.onopen = () => {
@@ -298,7 +313,8 @@ export default function GamePlayPage() {
         case 'turn':
           console.log(`📡 Received turn ${data.turn} from server`);
           setCurrentTurn(data.turn);
-          // setMessage('');
+          setMessage('');
+          messageRef.current = ''; // ref도 초기화
           setTurnInProgress(false); // 턴 시작 시 비활성화
           break;
         case 'timer':
@@ -318,6 +334,7 @@ export default function GamePlayPage() {
             const speakerIdx = data.turn % participants.length;
             const currentSpeakerUserId = participants[speakerIdx]?.user_id?.toString();
             const isCurrentSpeaker = myUserId && currentSpeakerUserId === myUserId;
+            setCurrentSpeakerName(participants[speakerIdx]?.users?.user_nickname || '');
             
             console.log(`🎤 Turn ${data.turn}: Speaker ID=${currentSpeakerUserId}, Is my turn=${isCurrentSpeaker}`);
             
@@ -375,15 +392,30 @@ export default function GamePlayPage() {
 
   // STT WebSocket 연결
   useEffect(() => {
-    const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
-    // const sttSocket = new WebSocket('ws://localhost:8080');
+    // const sttSocket = new WebSocket(`ws://${process.env.NEXT_PUBLIC_AWS_SERVER_IP}:8080`);
+    const sttSocket = new WebSocket('ws://localhost:8080');
     sttSocketRef.current = sttSocket;
 
     sttSocket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === 'stt') {
         console.log('🎤 STT received:', data.text);
-        setMessage(data.text);
+        console.log('📝 Accumulated:', data.accumulated);
+        
+        // 턴 종료 시 누적된 발언 사용, 그 외에는 실시간 발언 사용
+        if (data.clear) {
+          console.log('🧹 Clearing transcript');
+          setMessage('');
+          messageRef.current = '';
+        } else if (data.turnEnd && data.accumulated) {
+          console.log('🎤 Turn end - Using accumulated transcript:', data.accumulated);
+          setMessage(data.accumulated);
+        } else if (!turnInProgress) {
+          // 턴이 진행 중이 아닐 때는 메시지 업데이트하지 않음
+          console.log('⏸️ Turn not in progress, skipping STT update');
+        } else {
+          setMessage(data.text);
+        }
       }
     };
 
@@ -719,15 +751,26 @@ export default function GamePlayPage() {
             })}
         </PlayerGrid>
       </MainContent>
-      {showAILoading && <AILoadingOverlay speakerName={speakingUser} />}
+      {showAILoading && <AILoadingOverlay currentSpeakerName={currentSpeakerName} />}
       {showAIResult && (
         <AIResultModal
-          speakerName={speakingUser}
+          currentSpeakerName={currentSpeakerName}
           blinkCount={modalBlinkCount ?? 0}
           jitterCount={modalJitterCount ?? 0}
           // expression="당황한 표정"
           vagueness={modalVoiceAnalysis ?? '모호한 발언'}
-          liarProbability={Math.min(100,((modalVoiceAnalysisScore ?? 0)*0.7+(modalBlinkCount ?? 0)*10*0.1+(modalJitterCount ?? 0)*10*0.2))}
+          liarProbability={
+            Math.min(
+              100,
+              Number(
+                (
+                  ((modalVoiceAnalysisScore ?? 0) * 0.7) +
+                  ((modalBlinkCount ?? 0) * 10 * 0.1) +
+                  ((modalJitterCount ?? 0) * 10 * 0.2)
+                ).toFixed(1)
+              )
+            )
+          }
           onClose={() => {
             setShowAIResult(false);
             // 모달 닫을 때 데이터 초기화

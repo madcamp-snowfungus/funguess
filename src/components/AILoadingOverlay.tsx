@@ -5,14 +5,14 @@ import styled, { keyframes } from 'styled-components'
 import { motion } from 'framer-motion'
 
 interface AILoadingOverlayProps {
-  speakerName: string
+  currentSpeakerName: string
 }
 
-export default function AILoadingOverlay({ speakerName }: AILoadingOverlayProps) {
+export default function AILoadingOverlay({ currentSpeakerName }: AILoadingOverlayProps) {
   return (
     <Overlay>
       <Spinner />
-      <Message>{speakerName} 님의 발언을 AI가 분석중입니다 ...</Message>
+      <Message>{currentSpeakerName} 님의 발언을 AI가 분석중입니다 ...</Message>
     </Overlay>
   )
 }
