@@ -23,9 +23,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ message = "게임을 준�
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
-      >
-        <Logo>FunGuess</Logo>
-        
+      > 
         <LoadingWrapper>
           <Spinner />
           <LoadingText>{message}</LoadingText>
@@ -49,12 +47,11 @@ const Overlay = styled.div`
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+  background: #121212;
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(8px);
 `;
 
 const Container = styled.div`
@@ -63,17 +60,7 @@ const Container = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: white;
-`;
-
-const Logo = styled.h1`
-  font-size: 48px;
-  font-weight: 700;
-  margin-bottom: 60px;
-  background: linear-gradient(135deg, #21D35D, #1aad4d);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #FAFAFA;
 `;
 
 const LoadingWrapper = styled.div`
@@ -91,10 +78,10 @@ const spin = keyframes`
 const Spinner = styled.div`
   width: 60px;
   height: 60px;
-  border: 4px solid rgba(33, 211, 93, 0.2);
-  border-top: 4px solid #21D35D;
+  border: 6px solid #00D09C;
+  border-top-color: transparent;
   border-radius: 50%;
-  animation: ${spin} 1s linear infinite;
+  animation: ${spin} 0.9s linear infinite;
   margin-bottom: 20px;
 `;
 
@@ -121,7 +108,7 @@ const bounce = keyframes`
 const Dot = styled.div`
   width: 12px;
   height: 12px;
-  background-color: #21D35D;
+  background-color: #00D09C;
   border-radius: 50%;
   animation: ${bounce} 1.4s ease-in-out infinite both;
   

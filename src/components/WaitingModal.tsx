@@ -29,7 +29,8 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
 
   const [userId, setUserId] = useState<number | null>(null);
   const [gameId, setGameId] = useState<number | null>(null);
-  const [showLoading, setShowLoading] = useState(false);
+  const [showLoading, setShowLoading] = useState<boolean | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("게임을 시작하고 있습니다..");
 
   // userId, gameId 불러오는 useEffect (최초 한 번 실행)
   useEffect(() => {
@@ -71,6 +72,17 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
             return;
           }
 
+          // "게임을 시작하고 있습니다" 로딩 표시
+          const currentUser = participants.find(p => p.user_id === userId);
+          if (!currentUser?.isHost) {
+            setLoadingMessage("게임을 시작하고 있습니다..");
+            setShowLoading(true);
+          } else {
+            // 방장인 경우 이미 로딩 중이므로 메시지만 "역할을 확인하는 중입니다"로 변경
+            setLoadingMessage("역할을 확인하는 중입니다..");
+            setShowLoading(true);
+          }
+
           const res = await fetch('/api/role', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -92,13 +104,11 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
           console.log('[DEBUG] /api/role 응답:', data);
 
           if (data.role === 'liar') {
-            setShowLoading(true);
             setTimeout(() => {
               router.push(`/game/${gameCode}/reveal?role=liar`);
             }, 2000);
           } else if (data.role === 'player' && data.keyword) {
             const encodedKeyword = encodeURIComponent(data.keyword);
-            setShowLoading(true);
             setTimeout(() => {
               router.push(`/game/${gameCode}/reveal?role=player&keyword=${encodedKeyword}`);
             }, 2000);
@@ -129,113 +139,123 @@ export default function WaitingModal({ gameCode, participants, keyword, onClose 
       return;
     }
 
-    // 라이어 선택
-    const { data, error } = await supabase
-      .from('game_participants')
-      .select(`
-        id,
-        user_id,
-        is_host,
-        role,
-        joined_at,
-        users:user_id(user_nickname)
-      `)
-      .eq('game_id', gameId);
+    // 방장이 게임 시작 버튼을 누르자마자 즉시 로딩 화면 표시
+    setLoadingMessage("게임을 시작하고 있습니다..");
+    setShowLoading(true);
 
-    if (error || !data || data.length !== 4) {
-      console.error('참가자 정보 조회 실패:', error);
-      return;
-    }
+    try {
+      // 라이어 선택
+      const { data, error } = await supabase
+        .from('game_participants')
+        .select(`
+          id,
+          user_id,
+          is_host,
+          role,
+          joined_at,
+          users:user_id(user_nickname)
+        `)
+        .eq('game_id', gameId);
 
-    const latestParticipants = data as Array<{
-      id: number;
-      user_id: number;
-      is_host: boolean;
-      role: string;
-      joined_at: string;
-      users: { user_nickname: string }[];
-    }>;
-
-    const existingLiar = latestParticipants.find(p => p.role === 'liar');
-    if (existingLiar) {
-      console.log('이미 라이어가 설정되어 있음:', existingLiar);
-
-      // 게임 상태가 이미 started이면 그냥 라우팅만
-      const { data: gameData } = await supabase
-        .from('games')
-        .select('status')
-        .eq('id', gameId)
-        .single();
-      
-      if (gameData?.status === 'started') {
-        const res = await fetch('/api/role', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, gameCode }),
-        });
-
-        const { role } = await res.json();
-
-        const url = role === 'liar'
-          ? `/game/${gameCode}/reveal?role=liar`
-          : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
-
-        setShowLoading(true);
-        setTimeout(() => {
-          router.push(url);
-        }, 2000);
+      if (error || !data || data.length !== 4) {
+        console.error('참가자 정보 조회 실패:', error);
+        setShowLoading(false);
         return;
       }
-    } else {
-      const randomIndex = Math.floor(Math.random() * latestParticipants.length);
-      const selected = latestParticipants[randomIndex];
 
-      await fetch('/api/games/select-liar', {
+      const latestParticipants = data as Array<{
+        id: number;
+        user_id: number;
+        is_host: boolean;
+        role: string;
+        joined_at: string;
+        users: { user_nickname: string }[];
+      }>;
+
+      const existingLiar = latestParticipants.find(p => p.role === 'liar');
+      if (existingLiar) {
+        console.log('이미 라이어가 설정되어 있음:', existingLiar);
+
+        // 게임 상태가 이미 started이면 그냥 라우팅만
+        const { data: gameData } = await supabase
+          .from('games')
+          .select('status')
+          .eq('id', gameId)
+          .single();
+        
+        if (gameData?.status === 'started') {
+          const res = await fetch('/api/role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, gameCode }),
+          });
+
+          const { role } = await res.json();
+
+          const url = role === 'liar'
+            ? `/game/${gameCode}/reveal?role=liar`
+            : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
+
+          setTimeout(() => {
+            router.push(url);
+          }, 2000);
+          return;
+        }
+      } else {
+        const randomIndex = Math.floor(Math.random() * latestParticipants.length);
+        const selected = latestParticipants[randomIndex];
+
+        await fetch('/api/games/select-liar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId,
+            liarUserId: selected.user_id
+          })
+        });
+      }
+
+      // 게임 상태 업데이트
+      await supabase
+        .from('games')
+        .update({ status: 'started' })
+        .eq('id', gameId);
+
+      // 방장도 역할 받아와서 reveal 페이지로 이동
+      const res = await fetch('/api/role', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          gameId,
-          liarUserId: selected.user_id
-        })
+        body: JSON.stringify({ userId, gameCode }),
       });
+
+      const { role } = await res.json();
+
+      if (!role || !['liar', 'player'].includes(role)) {
+        alert('역할 정보를 찾을 수 없습니다.');
+        setShowLoading(false);
+        return;
+      }
+
+      const url = role === 'liar'
+        ? `/game/${gameCode}/reveal?role=liar`
+        : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
+
+      setTimeout(() => {
+        router.push(url);
+      }, 2000);
+
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('게임 시작 중 오류 발생:', error);
+      setShowLoading(false);
+      alert('게임 시작 중 오류가 발생했습니다.');
     }
-
-    // 게임 상태 업데이트
-    await supabase
-      .from('games')
-      .update({ status: 'started' })
-      .eq('id', gameId);
-
-    // 방장도 역할 받아와서 reveal 페이지로 이동
-    const res = await fetch('/api/role', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, gameCode }),
-    });
-
-    const { role } = await res.json();
-
-    if (!role || !['liar', 'player'].includes(role)) {
-      alert('역할 정보를 찾을 수 없습니다.');
-      return;
-    }
-
-    const url = role === 'liar'
-      ? `/game/${gameCode}/reveal?role=liar`
-      : `/game/${gameCode}/reveal?role=player&keyword=${encodeURIComponent(keyword)}`;
-
-    setShowLoading(true);
-    setTimeout(() => {
-      router.push(url);
-    }, 2000);
-
-    if (onClose) onClose();
   };
 
   const isDisabled = participants.length < 4;
 
   if (showLoading) {
-    return <LoadingScreen message="게임을 시작하고 있습니다..." />;
+    return <LoadingScreen message={loadingMessage} />;
   }
 
   return (
